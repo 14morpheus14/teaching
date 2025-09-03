@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCS105 – Secure Protocol Design Journey</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(120deg, #fdfbfb, #ebedee);
+      color: #111;
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      padding: 3rem 1rem;
+      background: #ffffffaa;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      background: linear-gradient(90deg, #007cf0, #00dfd8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: bold;
+    }
+    header p {
+      font-size: 1.2rem;
+      margin-top: 0.5rem;
+      color: #444;
+    }
+    .timeline {
+      position: relative;
+      max-width: 900px;
+      margin: 4rem auto;
+      padding: 0 1rem;
+    }
+    .step {
+      background: #fff;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin: 2rem 0;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+    }
+    .step:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+    }
+    .step h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #007cf0;
+    }
+    .step p {
+      margin: 0.5rem 0 1rem;
+      font-size: 1rem;
+      color: #333;
+    }
+    .step a {
+      display: inline-block;
+      padding: 0.6rem 1.2rem;
+      background: linear-gradient(90deg, #007cf0, #00dfd8);
+      color: white;
+      text-decoration: none;
+      border-radius: 999px;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+    .step a:hover {
+      background: linear-gradient(90deg, #00dfd8, #007cf0);
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(180deg, #007cf0, #00dfd8);
+      border-radius: 2px;
+    }
+    .step {
+      width: 80%;
+    }
+    .step:nth-child(odd) {
+      margin-left: 0;
+      margin-right: auto;
+    }
+    .step:nth-child(even) {
+      margin-left: auto;
+      margin-right: 0;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.9rem;
+      color: #666;
+      background: #fafafa;
+    }
+    footer a {
+      color: #007cf0;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MCS105 – Secure Protocol Design</h1>
+    <p>A chronological journey through cyberspace – guided by <b>Reiki Yamya</b>, Assistant Professor, Amity University Rajasthan</p>
+  </header>
+
+  <div class="timeline">
+    <div class="step">
+      <h2>Step 1: TCP/IP Protocol Suite</h2>
+      <p>Understand the foundation of the Internet – the TCP/IP stack.</p>
+      <a href="https://14morpheus14.github.io/teaching/protocol-stack.html">Start Learning</a>
+    </div>
+    <div class="step">
+      <h2>Step 2: Protocol Headers & Field Values</h2>
+      <p>Dive into protocol headers, their fields, and how they stack together.</p>
+      <a href="https://14morpheus14.github.io/teaching/packet-visualization-lab.html">Explore Headers</a>
+    </div>
+    <div class="step">
+      <h2>Step 3: Packet Crafting Lab</h2>
+      <p>Manually build and customize network packets.</p>
+      <a href="https://14morpheus14.github.io/teaching/packet-crafting-lab.html">Craft Packets</a>
+    </div>
+    <div class="step">
+      <h2>Step 4: Journey of a Packet</h2>
+      <p>Trace the life of a packet – from stack to NIC to the wire.</p>
+      <a href="https://14morpheus14.github.io/teaching/packet-journey.html">Follow the Journey</a>
+    </div>
+    <div class="step">
+      <h2>Step 5: Promiscuous Mode & Packet Sniffing</h2>
+      <p>Learn how networks can be observed and monitored.</p>
+      <a href="https://14morpheus14.github.io/teaching/packet-sniffing-lab.html">Sniff Packets</a>
+    </div>
+    <div class="step">
+      <h2>Step 6: ARP Spoofing</h2>
+      <p>Experiment with LAN sniffing using ARP spoofing.</p>
+      <a href="https://14morpheus14.github.io/teaching/arp-spoofing-lab.html">Start Lab</a>
+    </div>
+    <div class="step">
+      <h2>Step 7: Internet Infrastructure</h2>
+      <p>Understand submarine cables, satellites, backbones, and BGP.</p>
+      <a href="https://14morpheus14.github.io/teaching/internet.html">Explore the Internet</a>
+    </div>
+    <div class="step">
+      <h2>Step 8: BGP Hijacking</h2>
+      <p>Learn about Internet-level sniffing and routing attacks.</p>
+      <a href="https://14morpheus14.github.io/teaching/bgp-hijacking-lab.html">Hijack BGP</a>
+    </div>
+    <div class="step">
+      <h2>Step 9: TLS 1.2</h2>
+      <p>Discover how TLS 1.2 secures communication.</p>
+      <a href="https://tls12.xargs.org/">Learn TLS 1.2</a>
+    </div>
+    <div class="step">
+      <h2>Step 10: TLS 1.3</h2>
+      <p>Experience the improvements in TLS 1.3.</p>
+      <a href="https://tls13.xargs.org/">Learn TLS 1.3</a>
+    </div>
+    <div class="step">
+      <h2>Step 11: IPSec</h2>
+      <p>Understand secure tunnels with IPsec.</p>
+      <a href="http://www.unixwiz.net/techtips/iguide-ipsec.html">Dive into IPsec</a>
+    </div>
+  </div>
+
+  <footer>
+    <p>Also teaching: <b>MCS303 – Ethical Hacking & Digital Forensics</b> → <a href="mcs303.html">Go to Course</a></p>
+    <p>© 2025 Reiki Yamya – Amity University Rajasthan</p>
+  </footer>
+</body>
+</html>
