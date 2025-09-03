@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NIC DMA vs CPU Memory Access</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f4f8;
+  color: #1f2937;
+  margin: 0;
+  padding: 0;
+}
+h1 {
+  margin: 20px 0;
+  font-size: 26px;
+  color: #0b3d91;
+  text-align: center;
+}
+svg {
+  border-radius: 12px;
+  display: block;
+  margin: 20px auto;
+  background: #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.packet-layer {
+  width: 60px;
+  height: 20px;
+  stroke: #000;
+  fill-opacity: 0;
+  transition: fill-opacity 0.3s;
+}
+.packet-text {
+  font-size: 12px;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.ring {
+  fill: none;
+  stroke: #0b63f6;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 2px rgba(0,0,0,0.2));
+}
+.buffer {
+  fill: #fef3c7;
+  stroke: #f59e0b;
+  rx: 8;
+  ry: 8;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.1));
+}
+.arrow {
+  stroke: #6b7280;
+  stroke-width: 2;
+  marker-end: url(#arrowhead);
+}
+.annotation {
+  font-size: 13px;
+  fill: #374151;
+  font-weight: 600;
+}
+.stack-label {
+  font-size: 13px;
+  fill: #111827;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.button {
+  padding: 10px 20px;
+  margin: 10px 5px;
+  border: none;
+  border-radius: 8px;
+  background: #0b63f6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s;
+}
+.button:hover {
+  background: #084bb5;
+  transform: translateY(-2px);
+}
+</style>
+</head>
+<body>
+
+<h1>The Journey of Packets</h1>
+
+<svg id="viz" viewBox="0 0 1500 300" width="100%" height="300">
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6b7280"/>
+    </marker>
+  </defs>
+
+  <!-- TX Stack -->
+  <g id="txStack" transform="translate(50,50)">
+    <text x="30" y="-10" class="stack-label">TX Stack</text>
+    <rect width="60" height="20" fill="#0b3d91"/><text x="30" y="10" class="packet-text">App</text>
+    <rect width="60" height="20" y="20" fill="#16a34a"/><text x="30" y="30" class="packet-text">Transport</text>
+    <rect width="60" height="20" y="40" fill="#f97316"/><text x="30" y="50" class="packet-text">IP</text>
+    <rect width="60" height="20" y="60" fill="#dc2626"/><text x="30" y="70" class="packet-text">Ethernet</text>
+  </g>
+
+  <!-- TX Buffer -->
+  <rect id="txBuffer" class="buffer" x="200" y="40" width="80" height="80"/>
+  <text x="240" y="85" text-anchor="middle" class="annotation">TX Buffer</text>
+
+  <!-- Sender NIC -->
+  <g id="nicSender" transform="translate(350,30)">
+    <rect width="150" height="100" fill="#fee2e2" stroke="#dc2626" rx="12" ry="12"/>
+    <text x="75" y="-5" class="annotation" text-anchor="middle" font-size="14">Sender NIC</text>
+    <circle id="txRing" class="ring" cx="75" cy="50" r="40"/>
+    <text x="75" y="50" font-size="12" text-anchor="middle" dominant-baseline="middle">TX Ring (DMA)</text>
+  </g>
+
+  <!-- Wire -->
+  <line x1="500" y1="70" x2="650" y2="70" class="arrow"/>
+  <text x="575" y="50" class="annotation">Wire</text>
+
+  <!-- Receiver NIC -->
+  <g id="nicReceiver" transform="translate(650,30)">
+    <rect width="150" height="100" fill="#fee2e2" stroke="#dc2626" rx="12" ry="12"/>
+    <text x="75" y="-5" class="annotation" text-anchor="middle" font-size="14">Receiver NIC</text>
+    <circle id="rxRing" class="ring" cx="75" cy="50" r="40"/>
+    <text x="75" y="50" font-size="12" text-anchor="middle" dominant-baseline="middle">RX Ring (DMA)</text>
+  </g>
+
+  <!-- RX Buffer (more space from NIC) -->
+  <rect id="rxBuffer" class="buffer" x="850" y="40" width="80" height="80"/>
+  <text x="890" y="85" text-anchor="middle" class="annotation">RX Buffer</text>
+
+  <!-- RX Stack -->
+  <g id="rxStack" transform="translate(1050,50)">
+    <text x="30" y="-10" class="stack-label">RX Stack</text>
+    <rect width="60" height="20" fill="#0b3d91"/><text x="30" y="10" class="packet-text">App</text>
+    <rect width="60" height="20" y="20" fill="#16a34a"/><text x="30" y="30" class="packet-text">Transport</text>
+    <rect width="60" height="20" y="40" fill="#f97316"/><text x="30" y="50" class="packet-text">IP</text>
+    <rect width="60" height="20" y="60" fill="#dc2626"/><text x="30" y="70" class="packet-text">Ethernet</text>
+  </g>
+
+  <!-- Arrow path connecting components -->
+  <line x1="110" y1="90" x2="200" y2="90" class="arrow"/>
+  <line x1="280" y1="70" x2="350" y2="70" class="arrow"/>
+  <line x1="500" y1="70" x2="650" y2="70" class="arrow"/>
+  <line x1="800" y1="70" x2="850" y2="70" class="arrow"/>
+  <line x1="930" y1="90" x2="1050" y2="90" class="arrow"/>
+</svg>
+
+<div>
+  <button id="startBtn" class="button">Send Two More Packets</button>
+</div>
+<!-- Tutorial Section -->
+<div id="tutorial" style="width:90%; max-width:1200px; margin:20px auto; background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+  <h2 style="color:#0b3d91;">Step-by-Step Packet Journey Tutorial</h2>
+
+  <h3>1. TX Stack (Transmit Stack)</h3>
+  <p>The application generates data payload. This passes sequentially through the layers:</p>
+  <ul>
+    <li><strong>App Layer:</strong> Data generated by application.</li>
+    <li><strong>Transport Layer:</strong> Adds TCP/UDP headers.</li>
+    <li><strong>IP Layer:</strong> Adds source/destination IP addresses.</li>
+    <li><strong>Ethernet Layer:</strong> Adds Ethernet headers for physical transmission.</li>
+  </ul>
+
+  <h3>2. TX Buffer</h3>
+  <p>The packet is copied into system memory (TX Buffer). It stays here briefly before the NIC DMA engine fetches it. This reduces CPU involvement in the transmission.</p>
+
+  <h3>3. Sender NIC (TX Ring)</h3>
+  <p>The DMA engine inside the NIC reads the packet from TX Buffer and places it in the TX Ring. The NIC handles the actual transmission over the network wire.</p>
+
+  <h3>4. Physical Medium (Wire)</h3>
+  <p>The packet travels as an Ethernet frame through the physical medium to the receiver NIC.</p>
+
+  <h3>5. Receiver NIC (RX Ring)</h3>
+  <p>The incoming frame is stored in the RX Ring inside the NIC. DMA moves it to system memory (RX Buffer).</p>
+
+  <h3>6. RX Buffer</h3>
+  <p>The received packet resides in system memory temporarily before the CPU reads it for processing.</p>
+
+  <h3>7. RX Stack (Receive Stack)</h3>
+  <p>The packet is processed layer by layer in reverse order:</p>
+  <ul>
+    <li><strong>Ethernet Layer:</strong> Ethernet header removed.</li>
+    <li><strong>IP Layer:</strong> IP header processed.</li>
+    <li><strong>Transport Layer:</strong> TCP/UDP headers processed.</li>
+    <li><strong>App Layer:</strong> Payload delivered to the application.</li>
+  </ul>
+
+  <h3>8. Key Concepts</h3>
+  <ul>
+    <li><strong>DMA:</strong> Reduces CPU overhead by directly transferring packets between NIC and memory.</li>
+    <li><strong>Buffers:</strong> Temporary storage in system memory prevents packet loss and allows smooth transmission/reception.</li>
+    <li><strong>Layered Processing:</strong> Both TX and RX stacks demonstrate how protocols are layered for modular processing.</li>
+  </ul>
+</div>
+
+<script>
+// Packet creation
+function createPacket(colors){
+  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  colors.forEach((color,i)=>{
+    const r=document.createElementNS("http://www.w3.org/2000/svg","rect");
+    r.setAttribute("width","60");
+    r.setAttribute("height","20");
+    r.setAttribute("y",i*20);
+    r.setAttribute("fill",color);
+    r.setAttribute("fill-opacity","0");
+    g.appendChild(r);
+  });
+  document.getElementById("viz").appendChild(g);
+  return g;
+}
+
+// Move animation
+function move(el,x0,y0,x1,y1,dur,cb){
+  const start=performance.now();
+  function step(ts){
+    let t=(ts-start)/dur;if(t>1)t=1;
+    el.setAttribute("transform",`translate(${x0+(x1-x0)*t},${y0+(y1-y0)*t})`);
+    if(t<1) requestAnimationFrame(step); else if(cb) cb();
+  }
+  requestAnimationFrame(step);
+}
+
+// Spin animation
+function spin(el,cx,cy,r,dur,cb){
+  const start=performance.now();
+  function step(ts){
+    let t=(ts-start)/dur;if(t>1)t=1;
+    let angle=t*2*Math.PI;
+    let x=cx+r*Math.cos(angle)-30;
+    let y=cy+r*Math.sin(angle)-10;
+    el.setAttribute("transform",`translate(${x},${y})`);
+    if(t<1) requestAnimationFrame(step); else if(cb) cb();
+  }
+  requestAnimationFrame(step);
+}
+
+// Animate packet journey with TX stack completion and buffer pause
+function animatePacket(packet, delay){
+  setTimeout(()=>{
+    const layers = packet.querySelectorAll("rect");
+
+    // Step 1: show TX stack layers sequentially
+    function showLayer(i){
+      if(i >= layers.length) {
+        // Step 2: move to TX Buffer after all layers appear
+        setTimeout(()=>{
+          move(packet,50,50,200,40,1200,()=>{ // move to TX Buffer
+            setTimeout(()=>{ // pause in TX Buffer
+              move(packet,200,40,350,30,1200,()=>{ // move to TX Ring
+                spin(packet,425,80,40,2500,()=>{
+                  move(packet,500,70,650,30,1500,()=>{
+                    spin(packet,725,80,40,2500,()=>{
+                      move(packet,650,30,850,40,1200,()=>{
+                        move(packet,850,40,1050,50,1200,()=>{
+                          // peel off layers at RX Stack
+                          [3,2,1].forEach((i,k)=>
+                            setTimeout(()=>layers[i].setAttribute("fill-opacity","0"), k*500)
+                          );
+                        });
+                      });
+                    });
+                  });
+                });
+              });
+            }, 800); // pause in TX Buffer (800ms)
+          });
+        }, 500); // optional small pause after TX stack completion
+        return;
+      }
+      layers[i].setAttribute("fill-opacity","1");
+      setTimeout(()=>showLayer(i+1), 600); // slower appearance
+    }
+
+    showLayer(0);
+  }, delay);
+}
+
+
+document.getElementById("startBtn").onclick=()=>{
+  const colors=["#0b3d91","#16a34a","#f97316","#dc2626"];
+  animatePacket(createPacket(colors),0);
+  animatePacket(createPacket(colors),1000);
+};
+</script>
+
+</body>
+</html>
