@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Packet Visualization Tutorial</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      color: #111;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #0b63f6;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 2rem;
+    }
+    .instruction {
+      font-size: 0.9rem;
+      color: #444;
+      margin-bottom: 1rem;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+    }
+    .tab {
+      background: #e5e7eb;
+      border: 1px solid #ccc;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 6px 6px 0 0;
+      transition: background 0.2s;
+    }
+    .tab:hover {
+      background: #d1d5db;
+    }
+    .tab.active {
+      background: #0b63f6;
+      color: white;
+      border-bottom: none;
+    }
+    .protocol {
+      display: none;
+      background: white;
+      border-radius: 0 8px 8px 8px;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .protocol.active {
+      display: block;
+    }
+    .header-diagram {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid #ccc;
+      margin: 1rem 0;
+    }
+    .field-container {
+      border: 1px solid #ccc;
+      background: #f3f4f6;
+    }
+    .field {
+      padding: 0.5rem;
+      font-size: 0.85rem;
+      text-align: center;
+      cursor: pointer;
+    }
+    .field:hover {
+      background: #e0f2fe;
+    }
+    .explanation {
+      display: none;
+      padding: 0.5rem;
+      background: #f1f5f9;
+      border-top: 1px solid #ccc;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+    .field-container.active .explanation {
+      display: block;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    #stackDiagramContainer {
+        display: flex;
+        flex-direction: column; /* top to bottom */
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stack-box {
+        border: 1px solid #0b63f6;
+        background: #e0f2fe;
+        padding: 0.5rem 1rem;
+        width: 200px;
+        text-align: center;
+        border-radius: 6px;
+    }
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Protocol Headers and Packet Visualization</h1>
+  </header>
+  <div class="container">
+    <p class="instruction">Click a protocol tab below, then click on individual header fields to see what they mean, how values are computed, and what effect they have. Click on TCP/IP Stack tab to see how the full packet looks.</p>
+    <div class="tabs">
+      <button class="tab active" data-target="http">HTTP</button>
+      <button class="tab" data-target="smtp">SMTP</button>
+      <button class="tab" data-target="tcp">TCP</button>
+      <button class="tab" data-target="udp">UDP</button>
+      <button class="tab" data-target="ipv4">IPv4</button>
+      <button class="tab" data-target="ipv6">IPv6</button>
+      <button class="tab" data-target="icmpv4">ICMPv4</button>
+      <button class="tab" data-target="icmpv6">ICMPv6</button>
+      <button class="tab" data-target="ethernet">Ethernet</button>
+      <button class="tab" data-target="stack">TCP/IP Stack</button>
+    </div>
+
+    <!-- HTTP Header -->
+    <div id="http" class="protocol">
+    <h2>HTTP Header</h2>
+    <p>HTTP is a text-based application-layer protocol for transferring web resources.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Method</div>
+        <div class="explanation">
+            <b>Meaning:</b> Action requested by the client (e.g., GET, POST, PUT, DELETE).  
+            <b>How to Compute:</b> Chosen based on client operation.  
+            <b>Example Format:</b> `GET`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Request-URI</div>
+        <div class="explanation">
+            <b>Meaning:</b> Path of resource on server.  
+            <b>How to Compute:</b> Specify absolute or relative path.  
+            <b>Example Format:</b> `/index.html`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Version</div>
+        <div class="explanation">
+            <b>Meaning:</b> HTTP version used for request/response.  
+            <b>How to Compute:</b> Selected by client/server capabilities.  
+            <b>Example Format:</b> `HTTP/1.1`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Host</div>
+        <div class="explanation">
+            <b>Meaning:</b> Server domain being requested.  
+            <b>How to Compute:</b> Use domain name of target server.  
+            <b>Example Format:</b> `www.example.com`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">User-Agent</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifies client software/browser.  
+            <b>How to Compute:</b> Sent automatically by browser or HTTP client.  
+            <b>Example Format:</b> `Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Accept</div>
+        <div class="explanation">
+            <b>Meaning:</b> Media types client can handle.  
+            <b>How to Compute:</b> List MIME types in priority order.  
+            <b>Example Format:</b> `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Connection</div>
+        <div class="explanation">
+            <b>Meaning:</b> Connection management (keep-alive or close).  
+            <b>How to Compute:</b> Set based on desired behavior.  
+            <b>Example Format:</b> `keep-alive`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">CRLF</div>
+        <div class="explanation">
+            <b>Meaning:</b> Carriage Return + Line Feed, separates header lines.  
+            <b>How to Compute:</b> Insert after each header line.  
+            <b>Example Format:</b> `\r\n`
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+
+    <!-- SMTP Header -->
+    <div id="smtp" class="protocol">
+    <h2>SMTP Header</h2>
+    <p>SMTP (Simple Mail Transfer Protocol) is text-based for email transmission. Each command specifies an action.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">HELO/EHLO</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifies the client to the server; EHLO supports extended features.  
+            <b>How to Compute:</b> Send domain name of client in ASCII text.  
+            <b>Example Format:</b> `HELO mail.example.com`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">MAIL FROM</div>
+        <div class="explanation">
+            <b>Meaning:</b> Specifies sender email address.  
+            <b>How to Compute:</b> Format as `<local@domain>` per RFC 5321.  
+            <b>Example Format:</b> `MAIL FROM:<alice@example.com>`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">RCPT TO</div>
+        <div class="explanation">
+            <b>Meaning:</b> Specifies recipient email address.  
+            <b>How to Compute:</b> Format as `<local@domain>`. Multiple commands allowed for multiple recipients.  
+            <b>Example Format:</b> `RCPT TO:<bob@example.com>`
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">DATA</div>
+        <div class="explanation">
+            <b>Meaning:</b> Starts message body; ends with `CRLF.CRLF`.  
+            <b>How to Compute:</b> Send body lines terminated with CRLF; terminate with a single period on a line.  
+            <b>Example Format:</b> 
+            <pre>DATA
+    Subject: Test
+    Hello Bob
+    .</pre>
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- TCP Header -->
+    <div id="tcp" class="protocol">
+    <h2>TCP Header</h2>
+    <p>TCP provides reliable, connection-oriented communication with flow control and sequencing.</p>
+    <div class="header-diagram">
+        
+        <div class="field-container">
+        <div class="field">Source Port</div>
+        <div class="explanation">
+            <b>Meaning:</b> 16-bit identifier of the sender’s process.  
+            <b>How to Compute:</b> Usually assigned dynamically by OS (ephemeral port, range ~49152–65535).  
+            <b>Example Format:</b> Decimal integer → <code>54321</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Destination Port</div>
+        <div class="explanation">
+            <b>Meaning:</b> 16-bit identifier of the receiver’s process.  
+            <b>How to Compute:</b> Determined by the service (e.g., HTTP=80, HTTPS=443, SSH=22).  
+            <b>Example Format:</b> Decimal integer → <code>80</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Sequence Number</div>
+        <div class="explanation">
+            <b>Meaning:</b> 32-bit number indicating the first byte in this segment.  
+            <b>How to Compute:</b> Initial sequence chosen randomly; subsequent = last_seq + bytes_sent.  
+            <b>Example Format:</b> Decimal integer → <code>123456789</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Acknowledgment Number</div>
+        <div class="explanation">
+            <b>Meaning:</b> Next byte expected from the other side.  
+            <b>How to Compute:</b> If last byte received = <i>N</i>, then Ack = N+1.  
+            <b>Example Format:</b> Decimal integer → <code>123456790</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Flags</div>
+        <div class="explanation">
+            <b>Meaning:</b> 9 control bits (SYN, ACK, FIN, RST, PSH, URG, ECE, CWR, NS).  
+            <b>How to Compute:</b> Set based on connection state (e.g., handshake sets SYN=1).  
+            <b>Example Format:</b> Bit string → <code>000101000</code> (ACK+PSH).
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Window Size</div>
+        <div class="explanation">
+            <b>Meaning:</b> Flow control: max # of bytes sender can accept.  
+            <b>How to Compute:</b> Calculated dynamically from receive buffer size.  
+            <b>Example Format:</b> Decimal integer → <code>65535</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Checksum</div>
+        <div class="explanation">
+            <b>Meaning:</b> 16-bit integrity check for TCP header+data.  
+            <b>How to Compute:</b> Build a pseudo-header (SrcIP, DstIP, Protocol, Length) + TCP header + payload → sum 16-bit words with 1’s complement → invert result.  
+            <b>Example Format:</b> Hexadecimal → <code>0x1A2B</code>.
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Urgent Pointer</div>
+        <div class="explanation">
+            <b>Meaning:</b> Points to last urgent byte in data (with URG flag).  
+            <b>How to Compute:</b> Set to (SeqNum + UrgentDataLength). Zero if unused.  
+            <b>Example Format:</b> Decimal integer → <code>0</code>.
+        </div>
+        </div>
+        
+    </div>
+    </div>
+
+    <!-- UDP Header -->
+    <div id="udp" class="protocol">
+    <h2>UDP Header</h2>
+    <p>UDP provides lightweight, connectionless transport.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Source Port</div>
+        <div class="explanation">
+            <b>Meaning:</b> 16-bit sender port.  
+            <b>How to Compute:</b> Assigned dynamically or 0 if unused.  
+            <b>Example Format:</b> Decimal integer → <code>49152</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Destination Port</div>
+        <div class="explanation">
+            <b>Meaning:</b> 16-bit receiver port.  
+            <b>How to Compute:</b> Known service port (e.g., DNS=53).  
+            <b>Example Format:</b> Decimal integer → <code>53</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Length</div>
+        <div class="explanation">
+            <b>Meaning:</b> Total length (header + payload).  
+            <b>How to Compute:</b> 8 + payload size in bytes.  
+            <b>Example Format:</b> Decimal → <code>28</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Checksum</div>
+        <div class="explanation">
+            <b>Meaning:</b> Verifies header + data integrity.  
+            <b>How to Compute:</b> One’s complement sum of pseudo-header + UDP header + payload.  
+            <b>Example Format:</b> Hexadecimal → <code>0xF2C4</code>
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- IPv4 Header -->
+    <div id="ipv4" class="protocol">
+    <h2>IPv4 Header</h2>
+    <p>IPv4 is a connectionless network layer protocol using 32-bit addresses.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Version</div>
+        <div class="explanation">
+            <b>Meaning:</b> IP version (4 bits).  
+            <b>How to Compute:</b> Always 4 for IPv4.  
+            <b>Example Format:</b> Decimal → <code>4</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">IHL</div>
+        <div class="explanation">
+            <b>Meaning:</b> Internet Header Length (32-bit words).  
+            <b>How to Compute:</b> `(header length in bytes)/4`.  
+            <b>Example Format:</b> Decimal → <code>5</code> (20 bytes)
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Total Length</div>
+        <div class="explanation">
+            <b>Meaning:</b> Total packet length including header + data.  
+            <b>How to Compute:</b> header length + payload length.  
+            <b>Example Format:</b> Decimal → <code>60</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Identification</div>
+        <div class="explanation">
+            <b>Meaning:</b> Fragmentation ID.  
+            <b>How to Compute:</b> Increment per packet.  
+            <b>Example Format:</b> Hex → <code>0x1C46</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Flags</div>
+        <div class="explanation">
+            <b>Meaning:</b> 3 bits: DF, MF.  
+            <b>How to Compute:</b> Set DF/MF based on fragmentation rules.  
+            <b>Example Format:</b> Bits → <code>010</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Fragment Offset</div>
+        <div class="explanation">
+            <b>Meaning:</b> Position of fragment in original packet (13 bits).  
+            <b>How to Compute:</b> `(byte offset)/8`.  
+            <b>Example Format:</b> Decimal → <code>0</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">TTL</div>
+        <div class="explanation">
+            <b>Meaning:</b> Time-to-Live, max hops.  
+            <b>How to Compute:</b> Initialized at sender, decremented per router.  
+            <b>Example Format:</b> Decimal → <code>64</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Protocol</div>
+        <div class="explanation">
+            <b>Meaning:</b> Next-layer protocol (8 bits).  
+            <b>How to Compute:</b> Lookup assigned protocol number.  
+            <b>Example Format:</b> Decimal → <code>6</code> (TCP)
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Header Checksum</div>
+        <div class="explanation">
+            <b>Meaning:</b> Verifies header integrity.  
+            <b>How to Compute:</b> One’s complement of 16-bit sum of header words.  
+            <b>Example Format:</b> Hex → <code>0xB861</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Source IP</div>
+        <div class="explanation">
+            <b>Meaning:</b> Sender address (32-bit).  
+            <b>How to Compute:</b> Assigned by network interface.  
+            <b>Example Format:</b> Dotted decimal → <code>192.168.1.1</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Destination IP</div>
+        <div class="explanation">
+            <b>Meaning:</b> Receiver address (32-bit).  
+            <b>How to Compute:</b> Address of target host.  
+            <b>Example Format:</b> Dotted decimal → <code>8.8.8.8</code>
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- IPv6 Header -->
+    <div id="ipv6" class="protocol">
+    <h2>IPv6 Header</h2>
+    <p>IPv6 is the next-generation network layer protocol using 128-bit addresses and simplified header for efficiency.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Version</div>
+        <div class="explanation">
+            <b>Meaning:</b> IP version (4 bits).  
+            <b>How to Compute:</b> Always 6 for IPv6.  
+            <b>Example Format:</b> Decimal → <code>6</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Traffic Class</div>
+        <div class="explanation">
+            <b>Meaning:</b> Quality of Service field (8 bits).  
+            <b>How to Compute:</b> Set according to priority/DSCP rules.  
+            <b>Example Format:</b> Hex → <code>0x00</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Flow Label</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifies flow for QoS (20 bits).  
+            <b>How to Compute:</b> Assigned per flow; usually random.  
+            <b>Example Format:</b> Hex → <code>0x12345</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Payload Length</div>
+        <div class="explanation">
+            <b>Meaning:</b> Length of data following header (16 bits).  
+            <b>How to Compute:</b> Actual payload size in bytes.  
+            <b>Example Format:</b> Decimal → <code>1280</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Next Header</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifies upper-layer protocol (TCP=6, UDP=17).  
+            <b>How to Compute:</b> Assign according to encapsulated protocol.  
+            <b>Example Format:</b> Decimal → <code>6</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Hop Limit</div>
+        <div class="explanation">
+            <b>Meaning:</b> Maximum hops packet can traverse.  
+            <b>How to Compute:</b> Initialized by sender, decremented at each router.  
+            <b>Example Format:</b> Decimal → <code>64</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Source Address</div>
+        <div class="explanation">
+            <b>Meaning:</b> Sender IPv6 address (128 bits).  
+            <b>How to Compute:</b> Assigned by network interface.  
+            <b>Example Format:</b> Hexadecimal colon notation → <code>2001:db8::1</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Destination Address</div>
+        <div class="explanation">
+            <b>Meaning:</b> Receiver IPv6 address (128 bits).  
+            <b>How to Compute:</b> Target host address.  
+            <b>Example Format:</b> Hexadecimal colon notation → <code>2001:db8::2</code>
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- ICMPv4 Header -->
+    <div id="icmpv4" class="protocol">
+    <h2>ICMPv4 Header</h2>
+    <p>ICMPv4 is used for error messages and operational queries in IPv4 networks.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Type</div>
+        <div class="explanation">
+            <b>Meaning:</b> ICMP message type (e.g., 8=Echo Request, 0=Echo Reply).  
+            <b>How to Compute:</b> Assign value according to RFC 792.  
+            <b>Example Format:</b> Decimal → <code>8</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Code</div>
+        <div class="explanation">
+            <b>Meaning:</b> Subtype for the ICMP message.  
+            <b>How to Compute:</b> Per RFC for the selected Type.  
+            <b>Example Format:</b> Decimal → <code>0</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Checksum</div>
+        <div class="explanation">
+            <b>Meaning:</b> Verifies ICMP header + payload integrity.  
+            <b>How to Compute:</b> One’s complement sum of header and payload, inverted.  
+            <b>Example Format:</b> Hex → <code>0xF7FF</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Rest of Header</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifier and Sequence for Echo messages, varies for other types.  
+            <b>How to Compute:</b> Typically sequential numbers for Echo.  
+            <b>Example Format:</b> Identifier=1, Sequence=42
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- ICMPv6 Header -->
+    <div id="icmpv6" class="protocol">
+    <h2>ICMPv6 Header</h2>
+    <p>ICMPv6 is used for error reporting and diagnostics in IPv6 networks.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Type</div>
+        <div class="explanation">
+            <b>Meaning:</b> ICMPv6 message type (128=Echo Request, 129=Echo Reply).  
+            <b>How to Compute:</b> Assign per RFC 4443.  
+            <b>Example Format:</b> Decimal → <code>128</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Code</div>
+        <div class="explanation">
+            <b>Meaning:</b> Subtype of the message.  
+            <b>How to Compute:</b> Usually 0 for Echo messages.  
+            <b>Example Format:</b> Decimal → <code>0</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Checksum</div>
+        <div class="explanation">
+            <b>Meaning:</b> Verifies header + payload + pseudo-header integrity.  
+            <b>How to Compute:</b> One’s complement sum over ICMPv6 header + payload + IPv6 pseudo-header.  
+            <b>Example Format:</b> Hex → <code>0xABCD</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Message Body</div>
+        <div class="explanation">
+            <b>Meaning:</b> Identifier, Sequence, optional payload.  
+            <b>How to Compute:</b> Identifier typically sequential; payload arbitrary data.  
+            <b>Example Format:</b> Identifier=1, Sequence=42, Data="PingTest"
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- Ethernet Header -->
+    <div id="ethernet" class="protocol">
+    <h2>Ethernet II Frame</h2>
+    <p>Ethernet provides link-layer delivery over LANs using MAC addresses.</p>
+    <div class="header-diagram">
+
+        <div class="field-container">
+        <div class="field">Destination MAC</div>
+        <div class="explanation">
+            <b>Meaning:</b> Address of receiving interface.  
+            <b>How to Compute:</b> Preconfigured or learned via ARP.  
+            <b>Example Format:</b> Hex → <code>FF:FF:FF:FF:FF:FF</code> (broadcast)
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Source MAC</div>
+        <div class="explanation">
+            <b>Meaning:</b> Address of sending interface.  
+            <b>How to Compute:</b> Preconfigured or burned into NIC.  
+            <b>Example Format:</b> Hex → <code>00:1A:2B:3C:4D:5E</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">EtherType</div>
+        <div class="explanation">
+            <b>Meaning:</b> Indicates payload protocol (IPv4, IPv6, ARP, etc.).  
+            <b>How to Compute:</b> Assign per IANA EtherType.  
+            <b>Example Format:</b> Hex → <code>0x0800</code> (IPv4)
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Payload</div>
+        <div class="explanation">
+            <b>Meaning:</b> Encapsulated data (46–1500 bytes).  
+            <b>How to Compute:</b> Data from upper-layer protocol.  
+            <b>Example Format:</b> Hex/ASCII → <code>...</code>
+        </div>
+        </div>
+
+        <div class="field-container">
+        <div class="field">Frame Check Sequence (FCS)</div>
+        <div class="explanation">
+            <b>Meaning:</b> CRC-32 for frame integrity.  
+            <b>How to Compute:</b> Apply CRC-32 on all frame bytes except FCS itself.  
+            <b>Example Format:</b> Hex → <code>0x1D2C3B4A</code>
+        </div>
+        </div>
+
+    </div>
+    </div>
+
+    <!-- TCP/IP Stack Visualization -->
+    <div id="stack" class="protocol">
+    <h2>TCP/IP Stack Visualization</h2>
+    <p>Select layers and protocols to build a valid stack that corresponds to a packet sent on network. Options adapt based on previous choices.</p>
+
+    <div class="stack-layer">
+        <label>Link Layer:</label>
+        <select id="linkLayer">
+        <option value="">--Select--</option>
+        <option value="ethernet">Ethernet</option>
+        </select>
+    </div>
+
+    <div class="stack-layer" id="networkLayerContainer" style="display:none;">
+        <label>Network Layer:</label>
+        <select id="networkLayer">
+        <option value="">--Select--</option>
+        <option value="ipv4">IPv4</option>
+        <option value="ipv6">IPv6</option>
+        <option value="icmpv4">ICMPv4</option>
+        <option value="icmpv6">ICMPv6</option>
+        </select>
+    </div>
+
+    <div class="stack-layer" id="transportLayerContainer" style="display:none;">
+        <label>Transport Layer:</label>
+        <select id="transportLayer">
+        <option value="">--Select--</option>
+        <option value="tcp">TCP</option>
+        <option value="udp">UDP</option>
+        </select>
+    </div>
+
+    <div class="stack-layer" id="applicationLayerContainer" style="display:none;">
+        <label>Application Layer:</label>
+        <select id="applicationLayer">
+        <option value="">--Select--</option>
+        <option value="http">HTTP</option>
+        <option value="smtp">SMTP</option>
+        </select>
+    </div>
+
+    <div id="stackPreview" style="margin-top:1rem; font-weight:bold;"></div>
+    <div id="stackDiagramContainer" style="margin-top:1rem;"></div>
+    </div>
+
+
+  </div>
+
+  <script>
+    // Tabs switching
+    const tabs = document.querySelectorAll('.tab');
+    const protocols = document.querySelectorAll('.protocol');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        protocols.forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.target).classList.add('active');
+      });
+    });
+
+    // Field toggling
+    const fieldContainers = document.querySelectorAll('.field-container');
+    fieldContainers.forEach(fc => {
+      fc.querySelector('.field').addEventListener('click', () => {
+        fc.classList.toggle('active');
+      });
+    });
+
+      const linkLayer = document.getElementById('linkLayer');
+  const networkLayerContainer = document.getElementById('networkLayerContainer');
+  const networkLayer = document.getElementById('networkLayer');
+  const transportLayerContainer = document.getElementById('transportLayerContainer');
+  const transportLayer = document.getElementById('transportLayer');
+  const applicationLayerContainer = document.getElementById('applicationLayerContainer');
+  const applicationLayer = document.getElementById('applicationLayer');
+  const stackPreview = document.getElementById('stackPreview');
+
+  function updateStackPreview() {
+    let stack = [];
+    if(linkLayer.value) stack.push(linkLayer.options[linkLayer.selectedIndex].text);
+    if(networkLayerContainer.style.display!=="none" && networkLayer.value) stack.push(networkLayer.options[networkLayer.selectedIndex].text);
+    if(transportLayerContainer.style.display!=="none" && transportLayer.value) stack.push(transportLayer.options[transportLayer.selectedIndex].text);
+    if(applicationLayerContainer.style.display!=="none" && applicationLayer.value) stack.push(applicationLayer.options[applicationLayer.selectedIndex].text);
+    stackPreview.textContent = "Current Stack: " + stack.join(" → ");
+  }
+
+  linkLayer.addEventListener('change', () => {
+    if(linkLayer.value === "ethernet") {
+      networkLayerContainer.style.display = "block";
+    } else {
+      networkLayerContainer.style.display = "none";
+    }
+    networkLayer.value = "";
+    transportLayerContainer.style.display = "none";
+    transportLayer.value = "";
+    applicationLayerContainer.style.display = "none";
+    applicationLayer.value = "";
+    updateStackPreview();
+    renderStackDiagram();
+
+  });
+
+  networkLayer.addEventListener('change', () => {
+    // If ICMP, no transport layer
+    if(networkLayer.value === "icmpv4" || networkLayer.value === "icmpv6") {
+      transportLayerContainer.style.display = "none";
+      transportLayer.value = "";
+      applicationLayerContainer.style.display = "none";
+      applicationLayer.value = "";
+    } else if(networkLayer.value === "ipv4" || networkLayer.value === "ipv6") {
+      transportLayerContainer.style.display = "block";
+    }
+    updateStackPreview();
+    renderStackDiagram();
+  });
+
+  transportLayer.addEventListener('change', () => {
+    if(transportLayer.value === "tcp" || transportLayer.value === "udp") {
+      applicationLayerContainer.style.display = transportLayer.value === "tcp" ? "block" : "none";
+      if(transportLayer.value !== "tcp") applicationLayer.value = "";
+    }
+    updateStackPreview();
+    renderStackDiagram();
+  });
+
+    applicationLayer.addEventListener('change', () => {
+        updateStackPreview();
+        renderStackDiagram();
+    });
+
+  const protocolDiagrams = {
+    ethernet: document.getElementById('ethernet').querySelector('.header-diagram').outerHTML,
+    ipv4: document.getElementById('ipv4').querySelector('.header-diagram').outerHTML,
+    ipv6: document.getElementById('ipv6').querySelector('.header-diagram').outerHTML,
+    tcp: document.getElementById('tcp').querySelector('.header-diagram').outerHTML,
+    udp: document.getElementById('udp').querySelector('.header-diagram').outerHTML,
+    http: document.getElementById('http').querySelector('.header-diagram').outerHTML,
+    smtp: document.getElementById('smtp').querySelector('.header-diagram').outerHTML,
+    icmpv4: document.getElementById('icmpv4').querySelector('.header-diagram').outerHTML,
+    icmpv6: document.getElementById('icmpv6').querySelector('.header-diagram').outerHTML,
+    };
+
+    function renderStackDiagram() {
+        let layers = [];
+        if(linkLayer.value) layers.push(linkLayer.options[linkLayer.selectedIndex].text);
+        if(networkLayer.value) layers.push(networkLayer.options[networkLayer.selectedIndex].text);
+        if(transportLayer.value) layers.push(transportLayer.options[transportLayer.selectedIndex].text);
+        if(applicationLayer.value) layers.push(applicationLayer.options[applicationLayer.selectedIndex].text);
+
+        // Reverse for top-to-bottom rendering
+        layers = layers.reverse();
+
+        const container = document.getElementById('stackDiagramContainer');
+        container.innerHTML = ""; // clear previous
+
+        layers.forEach(layer => {
+            const div = document.createElement('div');
+            div.className = 'stack-box';
+            div.textContent = layer;
+            container.appendChild(div);
+        });
+    }
+
+
+
+
+  </script>
+</body>
+</html>
