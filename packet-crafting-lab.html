@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Packet Crafting Lab</title>
+  <style>
+    :root{--bg:#fff;--muted:#6b7280;--accent:#0b63f6;--panel:#f8fafc}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial;color:#0f172a;background:var(--bg);padding:18px}
+    h1{margin:0 0 6px;font-size:1.3rem}
+    .meta{color:var(--muted);margin-bottom:12px}
+    .layout{display:grid;grid-template-columns:360px 1fr;gap:14px}
+    .panel{background:var(--panel);border:1px solid #e6eef8;padding:12px;border-radius:8px}
+    .form-row{margin:8px 0}
+    label{display:block;font-size:13px;margin-bottom:4px}
+    input[type=text], input[type=number], textarea, select{width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px}
+    textarea{font-family:monospace}
+    .controls{display:flex;gap:8px;margin-top:10px}
+    button.primary{background:var(--accent);color:white;padding:8px 10px;border:0;border-radius:8px;cursor:pointer}
+    button.ghost{background:#fff;padding:8px;border:1px solid #e6eef8;border-radius:8px;cursor:pointer}
+    .help{background:white;border:1px solid #e6eef8;border-radius:6px;padding:8px;margin-top:6px}
+    .help h4{margin:0 0 6px}
+    .step-visual{border:1px solid #e6eef8;padding:8px;border-radius:6px;background:white}
+    .hex{background:#0b1220;color:#e6eef8;padding:10px;border-radius:6px;font-family:monospace;white-space:pre-wrap;overflow:auto;max-height:300px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #e8eef8;padding:6px;text-align:left;font-size:13px}
+    .error{color:#a91a1a;font-size:13px;margin-top:6px}
+    .ok{color:#166534;font-size:13px;margin-top:6px}
+    .collapsed{display:none}
+    @media (max-width:1000px){.layout{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <h1>Packet Crafting Lab</h1>
+  <div class="meta">Students must enter every header field manually. The lab validates protocol constraints but does not auto-fill checksums (you must supply them). Use the Help panels for field explanations. Build step-by-step and download the final frame as <code>.bin</code>.</div>
+
+  <div class="layout">
+    <div class="panel">
+      <h3>1) Select headers (choose order)</h3>
+      <p class="small">Check the headers you want to include; the builder will walk you through them in the order below.</p>
+      <label><input type="checkbox" id="selEth" checked/> Ethernet</label>
+      <label><input type="checkbox" id="selIPv4"/> IPv4</label>
+      <label><input type="checkbox" id="selIPv6"/> IPv6</label>
+      <label><input type="checkbox" id="selICMP"/> ICMP (ICMPv4/ICMPv6)</label>
+      <label><input type="checkbox" id="selUDP"/> UDP</label>
+      <label><input type="checkbox" id="selTCP"/> TCP</label>
+      <label><input type="checkbox" id="selHTTP"/> HTTP (payload)</label>
+      <label><input type="checkbox" id="selSMTP"/> SMTP (payload)</label>
+
+      <div class="controls">
+        <button class="primary" id="start">Start Build</button>
+        <button class="ghost" id="reset">Reset</button>
+      </div>
+
+      <div id="selectorError" class="error"></div>
+
+      <hr/>
+
+      <div id="formsArea" class="collapsed">
+        <h3 id="currentHeaderTitle">Header</h3>
+
+        <!-- Ethernet form -->
+        <div id="formEth" class="headerForm collapsed">
+          <div class="form-row"><label>Destination MAC (format: aa:bb:cc:dd:ee:ff)</label><input id="eth_dst" type="text" placeholder="e.g. 02:00:00:00:00:02"></div>
+          <div class="form-row"><label>Source MAC</label><input id="eth_src" type="text" placeholder="e.g. 02:00:00:00:00:01"></div>
+          <div class="form-row"><label>EtherType (hex, e.g. 0x0800)</label><input id="eth_type" type="text" placeholder="0x0800 for IPv4, 0x86DD for IPv6"></div>
+          <div class="help collapsed" id="helpEth">
+            <h4>Ethernet help</h4>
+            <p>Destination and Source MAC are 6-byte addresses. EtherType indicates the protocol in payload. Common values: <code>0x0800</code>=IPv4, <code>0x86DD</code>=IPv6, <code>0x0806</code>=ARP.</p>
+          </div>
+        </div>
+
+        <!-- IPv4 form -->
+        <div id="formIPv4" class="headerForm collapsed">
+          <div class="form-row"><label>Version (must be 4)</label><input id="ipv4_ver" type="number" min="4" max="4" placeholder="4"></div>
+          <div class="form-row"><label>IHL (header length in 32-bit words, minimum 5)</label><input id="ipv4_ihl" type="number" min="5" max="15" placeholder="5"></div>
+          <div class="form-row"><label>TOS / DSCP (0-255)</label><input id="ipv4_tos" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Total Length (bytes) — include IP header + transport + payload</label><input id="ipv4_totlen" type="number" min="0"></div>
+          <div class="form-row"><label>Identification (0-65535)</label><input id="ipv4_id" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>Flags + Fragment Offset (0-65535) — set DF bit 0x4000 if you want Don't Fragment</label><input id="ipv4_frag" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>TTL (0-255)</label><input id="ipv4_ttl" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Protocol (number, e.g., TCP=6 UDP=17 ICMP=1)</label><input id="ipv4_proto" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Header Checksum (hex, 0x0000 if you want to set later)</label><input id="ipv4_checksum" type="text" placeholder="e.g. 0xabcd"></div>
+          <div class="form-row"><label>Source IPv4 (dotted)</label><input id="ipv4_src" type="text" placeholder="e.g. 192.168.1.2"></div>
+          <div class="form-row"><label>Destination IPv4 (dotted)</label><input id="ipv4_dst" type="text" placeholder="e.g. 192.168.1.3"></div>
+          <div class="help collapsed" id="helpIPv4"><h4>IPv4 help</h4>
+            <p>Version must be 4. IHL is the header length in 32-bit words; minimum 5 means 20 bytes. Total Length must equal IHL*4 + transport length + payload length — this builder validates that. Protocol is the transport protocol number. Header checksum must be provided by you (the lab does not autofill).</p>
+          </div>
+        </div>
+
+        <!-- IPv6 form -->
+        <div id="formIPv6" class="headerForm collapsed">
+          <div class="form-row"><label>Version (must be 6)</label><input id="ipv6_ver" type="number" min="6" max="6" placeholder="6"></div>
+          <div class="form-row"><label>Traffic Class (0-255)</label><input id="ipv6_tc" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Flow Label (0-1048575)</label><input id="ipv6_flow" type="number" min="0" max="1048575"></div>
+          <div class="form-row"><label>Payload Length (bytes) — transport + payload</label><input id="ipv6_payloadlen" type="number" min="0"></div>
+          <div class="form-row"><label>Next Header (protocol number)</label><input id="ipv6_nh" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Hop Limit (0-255)</label><input id="ipv6_hlim" type="number" min="0" max="255" value="64"></div>
+          <div class="form-row"><label>Source IPv6 (textual)</label><input id="ipv6_src" type="text" placeholder="e.g. fe80::1"></div>
+          <div class="form-row"><label>Destination IPv6</label><input id="ipv6_dst" type="text" placeholder="e.g. fe80::2"></div>
+          <div class="help collapsed" id="helpIPv6"><h4>IPv6 help</h4>
+            <p>Version must be 6. Payload Length is the length after the 40-byte IPv6 header (transport + payload). Next Header is the transport protocol number. Checksums for TCP/UDP are mandatory in IPv6 — you must compute and supply them in the transport header.</p>
+          </div>
+        </div>
+
+        <!-- ICMP form -->
+        <div id="formICMP" class="headerForm collapsed">
+          <div class="form-row"><label>Type (0-255)</label><input id="icmp_type" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Code (0-255)</label><input id="icmp_code" type="number" min="0" max="255"></div>
+          <div class="form-row"><label>Checksum (hex)</label><input id="icmp_checksum" type="text" placeholder="0x0000"></div>
+          <div class="form-row"><label>Rest of Header / Identifier+Seq (hex or numeric) — depend on type</label><input id="icmp_rest" type="text" placeholder="e.g. 0x00010001 for id=1 seq=1"></div>
+          <div class="help collapsed" id="helpICMP"><h4>ICMP help</h4>
+            <p>ICMP for IPv4 uses Type/Code/Checksum. For Echo Request (type=8) the rest contains Identifier and Sequence. The builder does not auto-set the checksum — you must compute it and provide its hex value.</p>
+          </div>
+        </div>
+
+        <!-- UDP form -->
+        <div id="formUDP" class="headerForm collapsed">
+          <div class="form-row"><label>Source Port (0-65535)</label><input id="udp_sport" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>Destination Port</label><input id="udp_dport" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>Length (bytes) — UDP header + payload</label><input id="udp_len" type="number" min="0"></div>
+          <div class="form-row"><label>Checksum (hex) — 0x0000 allowed (means no checksum)</label><input id="udp_checksum" type="text" placeholder="0x0000"></div>
+          <div class="help collapsed" id="helpUDP"><h4>UDP help</h4>
+            <p>Length must equal 8 + payload length. On IPv4 a checksum of 0x0000 means no checksum and is permitted; on IPv6 it must be computed (non-zero) — this builder validates length consistency and will warn if rules are broken.</p>
+          </div>
+        </div>
+
+        <!-- TCP form -->
+        <div id="formTCP" class="headerForm collapsed">
+          <div class="form-row"><label>Source Port (0-65535)</label><input id="tcp_sport" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>Destination Port</label><input id="tcp_dport" type="number" min="0" max="65535"></div>
+          <div class="form-row"><label>Sequence Number (0-4294967295)</label><input id="tcp_seq" type="number" min="0"></div>
+          <div class="form-row"><label>Acknowledgement Number</label><input id="tcp_acknum" type="number" min="0"></div>
+          <div class="form-row"><label>Data Offset (32-bit words, minimum 5)</label><input id="tcp_doff" type="number" min="5" max="15" value="5"></div>
+          <div class="form-row"><label>Flags (hex or decimal) — set bits (e.g. 0x02 for SYN, 0x10 for ACK)</label><input id="tcp_flags" type="text" placeholder="e.g. 0x02"></div>
+          <div class="form-row"><label>Window Size (0-65535)</label><input id="tcp_win" type="number" min="0" max="65535" value="5840"></div>
+          <div class="form-row"><label>Checksum (hex)</label><input id="tcp_checksum" type="text" placeholder="0x0000"></div>
+          <div class="form-row"><label>Urgent Pointer</label><input id="tcp_urg" type="number" min="0" max="65535" value="0"></div>
+          <div class="help collapsed" id="helpTCP"><h4>TCP help</h4>
+            <p>TCP Data Offset is header length in 32-bit words (min 5 = 20 bytes). Flags set bits: FIN=0x01, SYN=0x02, RST=0x04, PSH=0x08, ACK=0x10, URG=0x20, etc. TCP checksum must be provided by the user (builder will not compute it). If IPv6 is used, TCP checksum cannot be 0.</p>
+          </div>
+        </div>
+
+        <!-- Payload form (HTTP / SMTP) -->
+        <div id="formPayload" class="headerForm collapsed">
+          <div class="form-row"><label>Application payload (text)</label><textarea id="payload_text" rows="6" placeholder="Enter raw HTTP request or SMTP content"></textarea></div>
+          <div class="help collapsed" id="helpPayload"><h4>Payload help</h4>
+            <p>Enter any textual payload your application layer would include (HTTP request lines, SMTP commands). The builder will embed this exact payload bytes after the transport header.</p>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+        <h3>Checksum Calculators</h3>
+        <p>Select which checksum to compute. Steps will be shown.</p>
+        <select id="checksumType">
+            <option value="ipv4">IPv4 Header Checksum</option>
+            <option value="icmp">ICMP Checksum</option>
+            <option value="udp">UDP Checksum</option>
+            <option value="tcp">TCP Checksum</option>
+            <option value="crc32">Ethernet CRC32</option>
+        </select>
+        <div class="controls">
+            <button class="primary" id="calcChecksumBtn">Compute Checksum</button>
+        </div>
+        <div id="checksumSteps" class="help collapsed"></div>
+        </div>
+
+
+        <div class="controls">
+          <button id="saveHeader" class="primary">Save Header</button>
+          <button id="prevHeader" class="ghost">Previous</button>
+          <button id="nextHeader" class="ghost">Next</button>
+        </div>
+
+        <div id="formMsg" class="error"></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <button id="downloadBtn" class="ghost">Download final .bin</button>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="panel">
+        <h3>Step-by-step visualization</h3>
+        <div id="visArea">
+          <div id="visHuman" class="step-visual">No headers yet. Start building.</div>
+          <h4 style="margin-top:8px">Hex (partial frame)</h4>
+          <div id="visHex" class="hex">(hex will appear here)</div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <h3>Final summary</h3>
+        <div id="finalHuman">(build complete frame to see human-readable summary)</div>
+        <h4 style="margin-top:8px">Full Hex + ASCII</h4>
+        <div id="finalHex" class="hex">(final hex will appear here)</div>
+      </div>
+
+      <div class="panel" style="margin-top:12px">
+        <h3>Raw socket sender (C)</h3>
+        <pre style="font-size:13px">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;netpacket/packet.h&gt;
+#include &lt;net/if.h&gt;
+#include &lt;sys/ioctl.h&gt;
+
+int main(int argc, char *argv[]) {
+    if (argc &lt; 3) { fprintf(stderr, "Usage: %s &lt;interface&gt; &lt;frame.bin&gt;\n", argv[0]); return 1; }
+    char *iface = argv[1]; char *file = argv[2];
+    int sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); if (sock &lt; 0) { perror("socket"); return 1; }
+    struct ifreq ifr; memset(&ifr,0,sizeof(ifr)); strncpy(ifr.ifr_name, iface, IFNAMSIZ-1);
+    if (ioctl(sock, SIOCGIFINDEX, &ifr) &lt; 0) { perror("ioctl"); close(sock); return 1; }
+    FILE *fp = fopen(file, "rb"); if (!fp) { perror("fopen"); close(sock); return 1; }
+    fseek(fp,0,SEEK_END); size_t len = ftell(fp); rewind(fp);
+    unsigned char *buf = malloc(len); fread(buf,1,len,fp); fclose(fp);
+    struct sockaddr_ll addr = {0}; addr.sll_family = AF_PACKET; addr.sll_ifindex = ifr.ifr_ifindex; addr.sll_halen = ETH_ALEN; memcpy(addr.sll_addr, buf, ETH_ALEN);
+    if (sendto(sock, buf, len, 0, (struct sockaddr*)&addr, sizeof(addr)) &lt; 0) { perror("sendto"); free(buf); close(sock); return 1; }
+    printf("Sent %zu bytes\n", len);
+    free(buf); close(sock); return 0; }
+        </pre>
+        <div class="small">Compile with <code>gcc -o sendframe sendframe.c</code>. You need root to run the binary.</div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+// State
+let selectedHeaders = [];
+let currentIndex = 0;
+let savedHeaders = []; // array of {name, bytes(Uint8Array), fields object}
+
+// Helper validators
+function isMac(s){ const parts = s.trim().split(':'); if(parts.length!==6) return false; return parts.every(p=>/^[0-9a-fA-F]{2}$/.test(p)); }
+function macToBytes(s){ return s.trim().split(':').map(x=>parseInt(x,16)); }
+function ipv4Valid(s){ const p = s.trim().split('.'); if(p.length!==4) return false; return p.every(x=>{ const n=Number(x); return Number.isInteger(n)&&n>=0&&n<=255; }); }
+function ipv4ToBytes(s){ return s.trim().split('.').map(x=>parseInt(x,10)); }
+function hexToBytes(h){ h=h.trim().replace(/^0x/i,'').replace(/[^0-9a-fA-F]/g,''); if(h.length%2) h='0'+h; const out=[]; for(let i=0;i<h.length;i+=2) out.push(parseInt(h.substr(i,2),16)); return out; }
+function toHex(buf){ return Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join(' '); }
+function toAscii(buf){ return Array.from(buf).map(b=> (b>=32&&b<127)?String.fromCharCode(b):'.').join(''); }
+function concat(arr){ let total=0; arr.forEach(a=>total+=a.length); const out=new Uint8Array(total); let off=0; arr.forEach(a=>{ out.set(a, off); off+=a.length; }); return out; }
+
+// UI helpers
+function show(elem){ elem.classList.remove('collapsed'); }
+function hide(elem){ elem.classList.add('collapsed'); }
+function setCurrentTitle(t){ document.getElementById('currentHeaderTitle').textContent = t; }
+
+// Build sequence from user selection
+function buildSequence(){ selectedHeaders = []; if(document.getElementById('selEth').checked) selectedHeaders.push('Ethernet'); if(document.getElementById('selIPv4').checked) selectedHeaders.push('IPv4'); if(document.getElementById('selIPv6').checked) selectedHeaders.push('IPv6'); if(document.getElementById('selICMP').checked) selectedHeaders.push('ICMP'); if(document.getElementById('selUDP').checked) selectedHeaders.push('UDP'); if(document.getElementById('selTCP').checked) selectedHeaders.push('TCP'); if(document.getElementById('selHTTP').checked) selectedHeaders.push('HTTP'); if(document.getElementById('selSMTP').checked) selectedHeaders.push('SMTP'); }
+
+// Show forms area based on sequence
+function startBuild(){ document.getElementById('selectorError').textContent=''; buildSequence(); if(selectedHeaders.length===0){ document.getElementById('selectorError').textContent='Select at least one header.'; return; }
+  currentIndex = 0; savedHeaders = []; document.getElementById('formsArea').classList.remove('collapsed'); showHeaderFormByName(selectedHeaders[currentIndex]); updateVis(); }
+
+function showHeaderFormByName(name){ // hide all
+  document.querySelectorAll('.headerForm').forEach(e=>hide(e)); const map={ 'Ethernet':'formEth','IPv4':'formIPv4','IPv6':'formIPv6','ICMP':'formICMP','UDP':'formUDP','TCP':'formTCP','HTTP':'formPayload','SMTP':'formPayload'};
+  const id = map[name]; if(!id) return; show(document.getElementById(id)); setCurrentTitle(name + ' ('+(currentIndex+1)+'/'+selectedHeaders.length+')'); // ensure help collapsed default
+  // show help collapsed by default
+  const helpId = { 'Ethernet':'helpEth','IPv4':'helpIPv4','IPv6':'helpIPv6','ICMP':'helpICMP','UDP':'helpUDP','TCP':'helpTCP','HTTP':'helpPayload','SMTP':'helpPayload' }[name]; if(helpId) hide(document.getElementById(helpId));
+}
+
+// Navigation
+document.getElementById('start').addEventListener('click', startBuild);
+document.getElementById('reset').addEventListener('click', ()=>{ location.reload(); });
+
+document.getElementById('nextHeader').addEventListener('click', ()=>{ if(currentIndex < selectedHeaders.length-1){ currentIndex++; showHeaderFormByName(selectedHeaders[currentIndex]); } });
+document.getElementById('prevHeader').addEventListener('click', ()=>{ if(currentIndex > 0){ currentIndex--; showHeaderFormByName(selectedHeaders[currentIndex]); } });
+
+// Toggle help panels when header title clicked
+['helpEth','helpIPv4','helpIPv6','helpICMP','helpUDP','helpTCP','helpPayload'].forEach(id=>{ const el=document.getElementById(id); if(el) el.previousElementSibling && el.previousElementSibling.addEventListener && null; });
+
+// Save header data and build bytes (no auto-checksum computation)
+document.getElementById('saveHeader').addEventListener('click', ()=>{
+  const name = selectedHeaders[currentIndex]; const msg=document.getElementById('formMsg'); msg.textContent='';
+  try{
+    let fields={}, bytes=new Uint8Array(0);
+    if(name==='Ethernet'){
+      const d = document.getElementById('eth_dst').value.trim(); const s = document.getElementById('eth_src').value.trim(); const t = document.getElementById('eth_type').value.trim(); if(!isMac(d)||!isMac(s)) throw 'Invalid MAC format (aa:bb:cc:dd:ee:ff)'; if(!/^0x[0-9a-fA-F]+$/.test(t)) throw 'EtherType must be hex like 0x0800'; fields={dst:d,src:s,type:t}; bytes = new Uint8Array([...macToBytes(d), ...macToBytes(s), ...hexToBytes(t)]);
+    }
+    else if(name==='IPv4'){
+      const ver = Number(document.getElementById('ipv4_ver').value); const ihl = Number(document.getElementById('ipv4_ihl').value); const tos = Number(document.getElementById('ipv4_tos').value); const totlen = Number(document.getElementById('ipv4_totlen').value); const id = Number(document.getElementById('ipv4_id').value); const frag = Number(document.getElementById('ipv4_frag').value); const ttl = Number(document.getElementById('ipv4_ttl').value); const proto = Number(document.getElementById('ipv4_proto').value); const chks = document.getElementById('ipv4_checksum').value.trim(); const src = document.getElementById('ipv4_src').value.trim(); const dst = document.getElementById('ipv4_dst').value.trim();
+      if(ver!==4) throw 'IPv4 version must be 4'; if(!(ihl>=5 && ihl<=15)) throw 'IHL must be 5..15'; if(!ipv4Valid(src) || !ipv4Valid(dst)) throw 'Invalid IPv4 addresses'; if(!(tos>=0 && tos<=255)) throw 'TOS must be 0..255'; if(!(ttl>=0 && ttl<=255)) throw 'TTL 0..255'; if(!(id>=0 && id<=65535)) throw 'ID 0..65535'; if(!(frag>=0 && frag<=65535)) throw 'Frag field invalid'; if(isNaN(totlen) || totlen<=0) throw 'Total length must be >0 (set to header+transport+payload)'; if(!/^0x[0-9a-fA-F]{1,4}$/.test(chks)) throw 'Provide IPv4 checksum as hex (e.g. 0xabcd)';
+      // Build header bytes (ihl*4 bytes)
+      const hdrLen = ihl*4; const hdr = new Uint8Array(hdrLen);
+      hdr[0] = (4<<4) | (ihl & 0x0f); hdr[1] = tos; hdr[2] = (totlen>>8)&0xff; hdr[3]= totlen & 0xff; hdr[4]=(id>>8)&0xff; hdr[5]=id&0xff; hdr[6]=(frag>>8)&0xff; hdr[7]=frag&0xff; hdr[8]=ttl; hdr[9]=proto; const ch = hexToBytes(chks); hdr[10]=ch[0]||0; hdr[11]=ch[1]||0; hdr.set(ipv4ToBytes(src),12); hdr.set(ipv4ToBytes(dst),16);
+      fields={version:ver,ihl:ihl,tos:tos,total_length:totlen,id:id,frag:frag,ttl:ttl,proto:proto,checksum:chks,src:src,dst:dst}; bytes = hdr;
+    }
+    else if(name==='IPv6'){
+      const ver = Number(document.getElementById('ipv6_ver').value); if(ver!==6) throw 'IPv6 version must be 6'; const tc = Number(document.getElementById('ipv6_tc').value)||0; const flow = Number(document.getElementById('ipv6_flow').value)||0; const payloadlen = Number(document.getElementById('ipv6_payloadlen').value)||0; const nh = Number(document.getElementById('ipv6_nh').value)||0; const hlim = Number(document.getElementById('ipv6_hlim').value)||64; const src = document.getElementById('ipv6_src').value.trim(); const dst = document.getElementById('ipv6_dst').value.trim(); if(!src||!dst) throw 'Provide IPv6 textual addresses (no strict validation)'; const hdr = new Uint8Array(40); hdr[0]=(6<<4); hdr[1]= (tc & 0xff); hdr[2]= (flow>>8)&0xff; hdr[3]= flow &0xff; hdr[4]=(payloadlen>>8)&0xff; hdr[5]= payloadlen &0xff; hdr[6]= nh; hdr[7]= hlim; // src/dst left as zeros for educational purposes
+      fields={version:ver,tc:tc,flow:flow,payloadlen:payloadlen,nextheader:nh,hoplimit:hlim,src:src,dst:dst}; bytes = hdr;
+    }
+    else if(name==='ICMP'){
+      const type = Number(document.getElementById('icmp_type').value); const code = Number(document.getElementById('icmp_code').value); const chks = document.getElementById('icmp_checksum').value.trim(); const rest = document.getElementById('icmp_rest').value.trim(); if(!(type>=0&&type<=255)) throw 'ICMP type 0..255'; if(!(code>=0&&code<=255)) throw 'ICMP code 0..255'; if(!/^0x[0-9a-fA-F]{1,4}$/.test(chks)) throw 'ICMP checksum must be hex e.g. 0xabcd'; const ch = hexToBytes(chks); const restBytes = rest.startsWith('0x')?hexToBytes(rest):[];
+      const buf = new Uint8Array(4 + restBytes.length); buf[0]=type; buf[1]=code; buf[2]=ch[0]||0; buf[3]=ch[1]||0; if(restBytes.length) buf.set(restBytes,4);
+      fields={type:type,code:code,checksum:chks,rest:rest}; bytes=buf;
+    }
+    else if(name==='UDP'){
+      const src = Number(document.getElementById('udp_sport').value); const dst = Number(document.getElementById('udp_dport').value); const len = Number(document.getElementById('udp_len').value); const chks = document.getElementById('udp_checksum').value.trim(); if(!(src>=0&&src<=65535)) throw 'UDP src port 0..65535'; if(!(dst>=0&&dst<=65535)) throw 'UDP dst port 0..65535'; if(!(len>=8)) throw 'UDP length must be >=8'; if(!/^0x[0-9a-fA-F]{1,4}$/.test(chks)) throw 'UDP checksum must be hex (e.g. 0x0000)'; const ch = hexToBytes(chks); const buf = new Uint8Array(8); buf[0]=(src>>8)&0xff; buf[1]=src&0xff; buf[2]=(dst>>8)&0xff; buf[3]=dst&0xff; buf[4]=(len>>8)&0xff; buf[5]=len&0xff; buf[6]=ch[0]||0; buf[7]=ch[1]||0; fields={sport:src,dport:dst,len:len,checksum:chks}; bytes=buf;
+    }
+    else if(name==='TCP'){
+      const src = Number(document.getElementById('tcp_sport').value); const dst = Number(document.getElementById('tcp_dport').value); const seq = Number(document.getElementById('tcp_seq').value)||0; const ack = Number(document.getElementById('tcp_acknum').value)||0; const doff = Number(document.getElementById('tcp_doff').value)||5; const flagsRaw = document.getElementById('tcp_flags').value.trim(); let flags = 0; if(flagsRaw.startsWith('0x')) flags = parseInt(flagsRaw,16); else if(flagsRaw) flags = parseInt(flagsRaw,10);
+      const win = Number(document.getElementById('tcp_win').value)||0; const chks = document.getElementById('tcp_checksum').value.trim(); const urg = Number(document.getElementById('tcp_urg').value)||0;
+      if(!(src>=0&&src<=65535)) throw 'TCP src port 0..65535'; if(!(dst>=0&&dst<=65535)) throw 'TCP dst port 0..65535'; if(!(doff>=5&&doff<=15)) throw 'TCP Data Offset 5..15'; if(!/^0x[0-9a-fA-F]{1,4}$/.test(chks)) throw 'TCP checksum must be hex like 0xabcd'; const ch = hexToBytes(chks);
+      const hdrLen = doff*4; const buf = new Uint8Array(hdrLen); buf[0]=(src>>8)&0xff; buf[1]=src&0xff; buf[2]=(dst>>8)&0xff; buf[3]=dst&0xff; buf[4]=(seq>>24)&0xff; buf[5]=(seq>>16)&0xff; buf[6]=(seq>>8)&0xff; buf[7]=seq&0xff; buf[8]=(ack>>24)&0xff; buf[9]=(ack>>16)&0xff; buf[10]=(ack>>8)&0xff; buf[11]=ack&0xff; buf[12]=(doff<<4)&0xf0; buf[13]=flags & 0xff; buf[14]=(win>>8)&0xff; buf[15]=win&0xff; buf[16]=ch[0]||0; buf[17]=ch[1]||0; buf[18]=(urg>>8)&0xff; buf[19]=urg&0xff; fields={sport:src,dport:dst,seq:seq,ack:ack,doff:doff,flags:flags,win:win,checksum:chks,urg:urg}; bytes=buf;
+    }
+    else if(name==='HTTP' || name==='SMTP'){
+      const text = document.getElementById('payload_text').value || '';
+      const enc = new TextEncoder().encode(text);
+      fields={text:text}; bytes=enc;
+    }
+    // Save
+    savedHeaders[currentIndex] = {name:name, bytes:bytes, fields:fields}; document.getElementById('formMsg').textContent='Header saved.'; document.getElementById('formMsg').className='ok';
+    // advance automatically if not last
+    updateVis(); if(currentIndex<selectedHeaders.length-1) { currentIndex++; showHeaderFormByName(selectedHeaders[currentIndex]); }
+  }catch(e){ document.getElementById('formMsg').textContent = e; document.getElementById('formMsg').className='error'; }
+});
+
+// Visualization
+function updateVis(){ const parts = []; const humans = []; for(let i=0;i<savedHeaders.length;i++){ const h = savedHeaders[i]; if(!h) break; parts.push(h.bytes); humans.push({name:h.name,fields:h.fields}); }
+  const framePartial = concat(parts);
+  // human readable
+  const humanDiv = document.getElementById('visHuman'); if(humans.length===0) humanDiv.textContent='No header saved yet.'; else{ humanDiv.innerHTML = '';
+    humans.forEach((h,idx)=>{ const el = document.createElement('div'); el.innerHTML = '<strong>'+ (idx+1)+'. '+h.name +'</strong><pre>'+ JSON.stringify(h.fields,null,2) +'</pre>'; humanDiv.appendChild(el); }); }
+  // hex
+  document.getElementById('visHex').textContent = framePartial.length? toHex(framePartial).toUpperCase() : '(no bytes yet)';
+  // final preview
+  const allParts = savedHeaders.every(Boolean) && savedHeaders.length===selectedHeaders.length ? concat(savedHeaders.map(h=>h.bytes)) : null;
+  if(allParts){ document.getElementById('finalHuman').innerHTML = '<pre>'+ JSON.stringify(savedHeaders.map(h=>({name:h.name,fields:h.fields})),null,2) +'</pre>'; const hexAll = toHex(allParts).toUpperCase(); document.getElementById('finalHex').textContent = hexAll + '\n\nASCII: ' + toAscii(allParts); window.finalFrame = allParts; } else { document.getElementById('finalHuman').textContent='Final frame incomplete. Save all headers to see full summary.'; document.getElementById('finalHex').textContent='(incomplete)'; window.finalFrame = null; }
+}
+
+// Download
+document.getElementById('downloadBtn').addEventListener('click', ()=>{
+  if(!window.finalFrame){ alert('Complete and save all headers first.'); return; }
+  const blob = new Blob([window.finalFrame], {type:'application/octet-stream'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='frame.bin'; a.click(); URL.revokeObjectURL(url);
+});
+
+// --- Internet Checksum (IPv4, UDP, TCP, ICMP) ---
+function internetChecksum(buf) {
+  let sum = 0;
+  let steps = [];
+  for (let i = 0; i < buf.length; i += 2) {
+    let word = (buf[i] << 8) + (buf[i + 1] || 0);
+    sum += word;
+    steps.push(`Add 0x${word.toString(16).padStart(4,'0')} → sum=0x${sum.toString(16)}`);
+    while (sum > 0xffff) {
+      sum = (sum & 0xffff) + (sum >>> 16);
+      steps.push(`Carry wrap → sum=0x${sum.toString(16)}`);
+    }
+  }
+  let result = (~sum) & 0xffff;
+  steps.push(`One’s complement → 0x${result.toString(16).padStart(4,'0')}`);
+  return {value: result, steps};
+}
+
+// --- Ethernet CRC32 ---
+function crc32(buf) {
+  let crc = 0xffffffff;
+  let poly = 0xedb88320;
+  let steps = [`Initial CRC=0xffffffff`];
+  for (let i = 0; i < buf.length; i++) {
+    crc ^= buf[i];
+    steps.push(`Byte ${i}: XOR with ${buf[i].toString(16).padStart(2,'0')} → crc=0x${crc.toString(16)}`);
+    for (let j = 0; j < 8; j++) {
+      if (crc & 1) {
+        crc = (crc >>> 1) ^ poly;
+        steps.push(`  bit${j}: LSB=1 → shift/xor poly → 0x${crc.toString(16)}`);
+      } else {
+        crc >>>= 1;
+        steps.push(`  bit${j}: LSB=0 → shift → 0x${crc.toString(16)}`);
+      }
+    }
+  }
+  crc = (~crc) >>> 0;
+  steps.push(`Final complement → 0x${crc.toString(16)}`);
+  return {value: crc, steps};
+}
+
+// --- Hook up UI ---
+document.getElementById('calcChecksumBtn').addEventListener('click', ()=>{
+  const type = document.getElementById('checksumType').value;
+  let buf = concat(savedHeaders.map(h=>h.bytes));
+  let result, steps;
+  if(type==='ipv4' || type==='udp' || type==='tcp' || type==='icmp') {
+    let {value, steps: s} = internetChecksum(buf);
+    result = '0x' + value.toString(16).padStart(4,'0');
+    steps = s;
+  } else if(type==='crc32') {
+    let {value, steps: s} = crc32(buf);
+    result = '0x' + value.toString(16).padStart(8,'0');
+    steps = s;
+  }
+  const stepsDiv = document.getElementById('checksumSteps');
+  stepsDiv.innerHTML = `<h4>Steps:</h4><pre>${steps.join('\n')}</pre><h4>Result:</h4><code>${result}</code>`;
+  show(stepsDiv);
+});
+
+
+</script>
+</body>
+</html>
