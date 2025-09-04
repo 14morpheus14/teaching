@@ -117,6 +117,16 @@
   .inline{display:inline-flex;gap:6px;align-items:center}
   .hint{font-size:.8rem;color:#6b7280}
   .toolbar{display:flex;gap:6px;flex-wrap:wrap}
+  .supported {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .supported .badge {
+    white-space: nowrap;
+  }
+
   .badge{
     background:#f3f4f6;
     border:1px solid #d1d5db;
@@ -192,9 +202,34 @@
       <button id="btnFilter">Apply</button>
       <button id="btnReset">Reset</button>
     </div>
-    <div class="hint" style="margin-top:6px">
-      Supported: <span class="badge">ip.src/dst</span> <span class="badge">ipv6.src/dst</span> <span class="badge">eth.src/dst</span> <span class="badge">tcp/udp/icmp/icmpv6/dns/http</span> <span class="badge">tcp.port/udp.port</span> <span class="badge">proto == tcp</span> <span class="badge">contains</span> <span class="badge">and/or</span>
+    <div class="hint">
+      <strong>Supported filters:</strong>
+      <div class="supported">
+        <span class="badge">ip.src</span>
+        <span class="badge">ip.dst</span>
+        <span class="badge">ipv6.src</span>
+        <span class="badge">ipv6.dst</span>
+        <span class="badge">eth.src</span>
+        <span class="badge">eth.dst</span>
+      </div>
+      <div class="supported">
+        <span class="badge">tcp</span>
+        <span class="badge">udp</span>
+        <span class="badge">icmp</span>
+        <span class="badge">icmpv6</span>
+        <span class="badge">dns</span>
+        <span class="badge">http</span>
+        <span class="badge">tcp.port</span>
+        <span class="badge">udp.port</span>
+      </div>
+      <div class="supported">
+        <span class="badge">proto == tcp</span>
+        <span class="badge">contains</span>
+        <span class="badge">and</span>
+        <span class="badge">or</span>
+      </div>
     </div>
+
   </div>
 
   <div class="right">
