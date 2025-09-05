@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ARP Spoofing with Different Subnet — Stepwise Animation</title>
+  <style>
+    :root{
+      --bg:#f8fafb; --panel:#ffffff; --muted:#6b7280; --accent:#0ea5a4; --danger:#ef4444; --shadow:0 8px 24px rgba(2,6,23,0.06);
+      --ok:#16a34a; font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,Arial;
+    }
+    *{box-sizing:border-box}
+    body{background:var(--bg);color:#0f172a;margin:0;padding:26px}
+    .wrap{max-width:980px;margin:0 auto}
+    h1{text-align:center;margin:0 0 12px;font-size:20px}
+    .controls{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);background:#fff;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,#e6fffd,#dff6f6);border-color:rgba(14,165,164,0.12)}
+    .card{background:var(--panel);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:var(--shadow)}
+
+    .panel-title{font-weight:700;margin-bottom:8px}
+    .stage{display:flex;gap:12px;align-items:center;justify-content:center}
+    svg{width:100%;height:260px}
+
+    /* device styling inside svg */
+    .device-rect{fill:#fff;stroke:#09131a;stroke-opacity:0.06;rx:10}
+    .dev-name{font-weight:700;font-size:13px;fill:#0f172a}
+    .dev-ip{font-size:11px;fill:var(--muted)}
+
+    /* arrows */
+    .arrow{fill:none;stroke:#0f172a;stroke-width:2;opacity:0}
+    .arrow.broadcast{stroke-dasharray:6 6}
+    .draw{stroke-dasharray:800;stroke-dashoffset:800;animation:draw 650ms linear forwards}
+    @keyframes draw{to{stroke-dashoffset:0}}
+
+    /* tables */
+    .tables{display:flex;justify-content:space-between;gap:8px;margin-top:8px}
+    .arp{width:48%;border-radius:8px;padding:10px;border:1px solid #e6eef0;background:#fff}
+    .arp h4{margin:0 0 8px 0;font-size:13px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:6px;border-bottom:1px solid #f1f5f9;text-align:left}
+    .poison{background:linear-gradient(90deg,#fff1f0,#fff);color:var(--danger);font-weight:700}
+    .good{background:linear-gradient(90deg,#f0fff6,#fff);color:var(--ok);font-weight:700}
+
+    .caption{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+
+    @media (max-width:820px){.tables{flex-direction:column}.arp{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ARP Spoofing & MITM</h1>
+
+    <div class="controls card">
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="prev">◀ Prev</button>
+        <button class="btn primary" id="next">Next ▶</button>
+        <button class="btn" id="play">Play</button>
+        <button class="btn" id="reset">Reset</button>
+        <div style="margin-left:12px;color:var(--muted)">Step <strong id="stepNum">0</strong> / 5</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <div class="panel-title">Network view</div>
+      <div class="stage">
+        <svg viewBox="0 0 1000 260" role="img">
+          <defs>
+            <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="#0f172a"/>
+            </marker>
+          </defs>
+
+          <!-- Host A -->
+          <g id="hostA" transform="translate(120,160)">
+            <rect x="-70" y="-30" width="140" height="60" class="device-rect"/>
+            <text x="0" y="-4" text-anchor="middle" class="dev-name">Host A</text>
+            <text x="0" y="14" text-anchor="middle" class="dev-ip">10.0.0.10</text>
+          </g>
+
+          <!-- Gateway -->
+          <g id="gw" transform="translate(480,160)">
+            <rect x="-80" y="-40" width="160" height="80" class="device-rect"/>
+            <text x="0" y="-10" text-anchor="middle" class="dev-name">Gateway</text>
+            <text x="0" y="12" text-anchor="middle" class="dev-ip">LAN: 10.0.0.1 / WAN: 192.168.1.1</text>
+          </g>
+
+          <!-- Host B (in another subnet cloud) -->
+          <g id="cloud" transform="translate(800,70)">
+            <ellipse rx="120" ry="60" fill="#f0f9ff" stroke="#bae6fd" stroke-width="2"/>
+            <text x="0" y="-30" text-anchor="middle" font-size="12" fill="#0369a1">192.168.1.0/24 subnet</text>
+            <g id="hostB" transform="translate(0,20)">
+              <rect x="-70" y="-20" width="140" height="40" class="device-rect"/>
+              <text x="0" y="-4" text-anchor="middle" class="dev-name">Host B</text>
+              <text x="0" y="14" text-anchor="middle" class="dev-ip">192.168.1.20</text>
+            </g>
+          </g>
+
+          <!-- Attacker -->
+          <g id="att" transform="translate(300,50)">
+            <rect x="-60" y="-25" width="120" height="50" class="device-rect"/>
+            <text x="0" y="-2" text-anchor="middle" class="dev-name">Attacker</text>
+            <text x="0" y="14" text-anchor="middle" class="dev-ip">10.0.0.66</text>
+          </g>
+
+          <!-- arrows -->
+          <path id="bcastA" class="arrow broadcast" d="M180,140 C300,60 600,60 720,140" marker-end="url(#m1)"/>
+          <text id="bcastLabel" x="480" y="50" text-anchor="middle" font-size="12" fill="var(--muted)">Broadcast: Who has 10.0.0.1?</text>
+
+          <path id="gwReply" class="arrow" d="M480,150 C380,200 220,200 140,150" marker-end="url(#m1)"/>
+          <text id="gwReplyLabel" x="300" y="210" text-anchor="middle" font-size="12" fill="var(--muted)">Gateway → Host A: GW-MAC</text>
+
+          <path id="attFakeToA" class="arrow" d="M300,50 C240,80 180,120 150,140" marker-end="url(#m1)"/>
+          <text id="attFakeToALabel" x="210" y="90" text-anchor="middle" font-size="12" fill="var(--danger)">Fake: 10.0.0.1 → ATT-MAC</text>
+
+          <path id="attFakeToGw" class="arrow" d="M300,60 C360,100 440,120 460,140" marker-end="url(#m1)"/>
+          <text id="attFakeToGwLabel" x="370" y="110" text-anchor="middle" font-size="12" fill="var(--danger)">Fake: 10.0.0.10 → ATT-MAC</text>
+
+          <path id="hostToAtt" class="arrow" d="M190,150 C260,100 260,100 290,70" marker-end="url(#m1)"/>
+          <path id="attToGw" class="arrow" d="M310,70 C400,100 440,120 470,140" marker-end="url(#m1)"/>
+        </svg>
+      </div>
+
+      <div class="tables">
+        <div class="arp" id="arpHostA">
+          <h4>Host A ARP table</h4>
+          <table>
+            <thead><tr><th>IP</th><th>MAC</th></tr></thead>
+            <tbody><tr><td>10.0.0.1</td><td id="hostA_gw">?</td></tr></tbody>
+          </table>
+        </div>
+        <div class="arp" id="arpGateway">
+          <h4>Gateway ARP table</h4>
+          <table>
+            <thead><tr><th>IP</th><th>MAC</th></tr></thead>
+            <tbody><tr><td>10.0.0.10</td><td id="gw_hostA">?</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="caption" id="caption">Use Next to step through: ARP → Fake replies → Poisoning → MITM.</div>
+    </section>
+
+    <section class="card">
+      <div class="panel-title">Explanation (step text)</div>
+      <div id="stepText" style="font-size:14px;color:var(--muted)">Step description will appear here.</div>
+    </section>
+  </div>
+
+  <script>
+    const stepNum=document.getElementById('stepNum');
+    const [bcastA,bcastLabel,gwReply,gwReplyLabel,attFakeToA,attFakeToALabel,attFakeToGw,attFakeToGwLabel,hostToAtt,attToGw] =
+      ['bcastA','bcastLabel','gwReply','gwReplyLabel','attFakeToA','attFakeToALabel','attFakeToGw','attFakeToGwLabel','hostToAtt','attToGw'].map(id=>document.getElementById(id));
+    const hostA_gw=document.getElementById('hostA_gw');
+    const gw_hostA=document.getElementById('gw_hostA');
+    const caption=document.getElementById('caption');
+    const stepText=document.getElementById('stepText');
+
+    const REAL_GW='GW-MAC', REAL_A='A-MAC', ATT='ATTACKER-MAC';
+    let step=0, playing=false, handle=null;
+
+    function hideAll(){
+      [bcastA,gwReply,attFakeToA,attFakeToGw,hostToAtt,attToGw].forEach(e=>{e.style.opacity=0;e.classList.remove('draw')});
+      [bcastLabel,gwReplyLabel,attFakeToALabel,attFakeToGwLabel].forEach(l=>l.style.opacity=0);
+    }
+    function draw(el,label){el.style.opacity=1;el.classList.remove('draw');void el.getBBox;el.classList.add('draw');if(label)label.style.opacity=1;}
+
+    const steps = [
+  // Step 0 — initial
+  () => {
+    hideAll(); stepNum.textContent = '0';
+    hostA_gw.textContent = '?'; hostA_gw.className = '';
+    gw_hostA.textContent = '?'; gw_hostA.className = '';
+    caption.textContent = 'Initial state.';
+    stepText.textContent = 'Host A wants to reach Host B (192.168.1.20). Since Host B is in another subnet, Host A only needs the Gateway’s MAC.';
+  },
+
+  // Step 1 — broadcast
+  () => {
+    hideAll(); draw(bcastA, bcastLabel); stepNum.textContent = '1';
+    hostA_gw.textContent = '?'; hostA_gw.className = '';
+    gw_hostA.textContent = '?'; gw_hostA.className = '';
+    caption.textContent = 'Host A broadcasts for Gateway MAC.';
+    stepText.textContent = 'Host A sends ARP: "Who has 10.0.0.1?" (Gateway IP). Both Gateway and Attacker see it.';
+  },
+
+  // Step 2 — gateway reply
+  () => {
+    hideAll(); draw(gwReply, gwReplyLabel); stepNum.textContent = '2';
+    hostA_gw.textContent = REAL_GW; hostA_gw.className = 'good';
+    gw_hostA.textContent = '?'; gw_hostA.className = '';
+    caption.textContent = 'Gateway replies with real MAC.';
+    stepText.textContent = 'Gateway says: "10.0.0.1 → GW-MAC". Host A caches it.';
+  },
+
+  // Step 3 — attacker poisons Host A
+  () => {
+    hideAll(); draw(attFakeToA, attFakeToALabel); stepNum.textContent = '3';
+    hostA_gw.textContent = ATT; hostA_gw.className = 'poison';
+    gw_hostA.textContent = '?'; gw_hostA.className = ''; // <-- reset gateway table
+    caption.textContent = 'Attacker poisons Host A.';
+    stepText.textContent = 'Attacker fakes ARP reply: "10.0.0.1 → ATTACKER-MAC". Host A updates entry because ARP is not authenticated.';
+  },
+
+  // Step 4 — attacker poisons Gateway
+  () => {
+    hideAll(); draw(attFakeToGw, attFakeToGwLabel); stepNum.textContent = '4';
+    hostA_gw.textContent = ATT; hostA_gw.className = 'poison';
+    gw_hostA.textContent = ATT; gw_hostA.className = 'poison';
+    caption.textContent = 'Attacker poisons Gateway.';
+    stepText.textContent = 'Gateway thinks 10.0.0.10 (Host A) is at ATTACKER-MAC.';
+  },
+
+  // Step 5 — MITM established
+  () => {
+    hideAll(); draw(hostToAtt); setTimeout(() => draw(attToGw), 300); stepNum.textContent = '5';
+    hostA_gw.textContent = ATT; hostA_gw.className = 'poison';
+    gw_hostA.textContent = ATT; gw_hostA.className = 'poison';
+    caption.textContent = 'MITM established.';
+    stepText.textContent = 'Traffic: Host A → Attacker → Gateway → Host B. Replies go back via Attacker too.';
+  }
+];
+
+    function go(n){step=Math.max(0,Math.min(n,steps.length-1));steps[step]();}
+    function stopPlay(){playing=false;document.getElementById('play').textContent='Play';if(handle)clearInterval(handle);}
+    document.getElementById('next').onclick=()=>{go(step+1);stopPlay();}
+    document.getElementById('prev').onclick=()=>{go(step-1);stopPlay();}
+    document.getElementById('reset').onclick=()=>{go(0);stopPlay();}
+    document.getElementById('play').onclick=()=>{if(playing){stopPlay();return;}playing=true;document.getElementById('play').textContent='Pause';handle=setInterval(()=>{if(step<steps.length-1)go(step+1);else stopPlay();},1600);}
+    go(0);
+  </script>
+</body>
+</html>
