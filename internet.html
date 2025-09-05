@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Internet Infrastructure Tutorial</title>
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background:#f9fbfc;
+  margin:0; padding:20px;
+  color:#0f172a;
+}
+h1,h2 {text-align:center;}
+section {
+  background:#fff; 
+  padding:20px; 
+  border-radius:12px; 
+  box-shadow:0 6px 16px rgba(2,6,23,0.08); 
+  margin-bottom:28px;
+}
+.narration {margin-top:12px; font-size:15px; line-height:1.5;}
+svg {width:100%; height:600px; margin-top:16px; border:1px solid #eee; border-radius:8px;}
+.as-box {fill:rgba(14,165,164,0.15); stroke:#0ea5a4; stroke-width:2; rx:8;}
+.label {font:13px sans-serif; fill:#071124;}
+.cable {fill:none; stroke:#0ea5a4; stroke-width:3; stroke-dasharray:6 4;}
+.satellite-path {fill:none; stroke:#f59e0b; stroke-width:2; stroke-dasharray:8 4;}
+.packet {
+  fill:#ef4444;
+  r:6;
+  animation: travel 8s linear infinite;
+}
+@keyframes travel {
+  0% { transform: translate(120px, 480px);}   /* NYC Tier-3 */
+  20% { transform: translate(300px, 420px);}  /* US Tier-2 */
+  40% { transform: translate(520px, 300px);}  /* US Tier-1 */
+  60% { transform: translate(800px, 250px);}  /* Atlantic cable */
+  75% { transform: translate(950px, 300px);}  /* India Tier-1 */
+  90% { transform: translate(1100px, 380px);} /* Jio Tier-2 */
+  100% { transform: translate(1180px, 460px);}/* Jio Tier-3 */
+}
+</style>
+</head>
+<body>
+
+<h1>The Internet Infrastructure Tutorial</h1>
+
+<section>
+<h2>1. Autonomous Systems and Tiers</h2>
+<div class="narration">
+The internet is not a single network, but a network of networks. These networks are called <strong>Autonomous Systems (ASes)</strong>, each managed by a single organization and identified by a unique <strong>ASN (Autonomous System Number)</strong>.  
+
+ASes are organized into tiers based on their connectivity and reach:  
+<ul>
+<li><strong>Tier-1 ASes:</strong> Global backbones with direct connections to other Tier-1 networks. They can reach every network on the internet without paying for transit. Examples include NTT, Tata Communications, and Bharti Airtel.</li>
+<li><strong>Tier-2 ASes:</strong> Regional ISPs that connect to Tier-1 networks and often peer with other Tier-2s. They serve large areas, aggregating traffic from Tier-3 networks. Examples include Verizon, Airtel Backbone, or RailTel.</li>
+<li><strong>Tier-3 ASes:</strong> Local ISPs that provide access to end-users, such as residents, businesses, or village networks. They connect to Tier-2 or sometimes directly to Tier-1 networks. Examples include Spectrum (NYC), Jio Access (Patna), or BSNL nodes in Arunachal Pradesh.</li>
+</ul>
+
+Understanding AS tiers is critical to visualizing how a data packet travels across the internet, from a local user to an international destination. Tier-3 handles local access, Tier-2 aggregates regionally, and Tier-1 carries traffic globally, often over submarine cables or international links.
+</div>
+</section>
+
+<section>
+<h2>2. Packet Journey: AT&T (NYC) → Jio (Patna)</h2>
+<div class="narration">
+Every packet sent over the internet follows a well-defined path through a hierarchy of networks called <strong>Autonomous Systems (ASes)</strong>. Here’s how a packet travels from a user in Central Park, NYC to a Jio user in Patna, India:  
+<br><br>
+1. The packet starts at the <strong>user’s device</strong> and enters the local ISP, in this case, <strong>Spectrum (Tier-3)</strong> in NYC. Tier-3 ISPs connect many end-users to the broader internet.  
+<br><br>
+2. From there, the packet is routed to a <strong>regional Tier-2 ISP</strong> like Verizon, which aggregates traffic from multiple Tier-3 networks and connects to Tier-1 backbones.  
+<br><br>
+3. The packet then enters a <strong>Tier-1 global backbone</strong>, such as NTT America, which has direct interconnections with other Tier-1 networks around the world. Tier-1 ASes form the spine of the internet.  
+<br><br>
+4. To cross the Atlantic, the packet travels through a <strong>submarine cable</strong> (for example, the EIG cable) from the U.S. landing station (Bellport CLS) to India’s landing station (Mumbai CLS). Submarine cables carry nearly all intercontinental internet traffic.  
+<br><br>
+5. Upon reaching India, the packet is handled by a <strong>Tier-1 Indian ISP</strong> like Bharti Airtel, which connects the international cable to the national backbone.  
+<br><br>
+6. The packet moves through <strong>regional Tier-2 networks</strong> (Airtel Backbone) and finally reaches the <strong>local Tier-3 ISP</strong> in Patna (Jio Access) that serves the destination users.  
+<br><br>
+7. Finally, the packet arrives at the <strong>end-users’ devices</strong> in Patna.  
+<br><br>
+This journey highlights the hierarchical nature of the internet: Tier-3 connects users locally, Tier-2 aggregates regionally, and Tier-1 carries traffic globally. The undersea submarine cables are critical for international connectivity, forming the backbone of global communication.
+</div>
+
+<svg viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .land-us { fill: #e5f9e0; }
+    .land-ind { fill: #fef9c3; }
+    .ocean { fill: #bfdbfe; }
+    .as-box { fill: #fff; stroke: #333; stroke-width: 2; rx: 6; ry: 6; }
+    .label { font-family: sans-serif; font-size: 13px; }
+    .box-label { font-family: sans-serif; font-size: 12px; }
+  </style>
+
+  <!-- Landmasses -->
+  <rect x="0" y="350" width="400" height="250" class="land-us"/>
+  <rect x="800" y="350" width="400" height="250" class="land-ind"/>
+
+  <!-- Ocean -->
+  <rect x="400" y="350" width="400" height="250" class="ocean"/>
+  <text x="600" y="590" text-anchor="middle" class="label">Atlantic & Indian Ocean</text>
+
+  <!-- Submarine cable -->
+  <path d="M380,360 C500,500 700,500 820,360"
+        stroke="#0ea5a4" stroke-width="6" fill="none" stroke-dasharray="10 6"/>
+  <text x="600" y="470" text-anchor="middle" class="label">E-I G Submarine Cable</text>
+
+  <!-- Users in NYC -->
+  <circle cx="40" cy="280" r="5" fill="gray"/>
+  <circle cx="60" cy="290" r="5" fill="gray"/>
+  <circle cx="50" cy="300" r="5" fill="gray"/>
+  <text x="70" y="320" class="label" text-anchor="middle">(Central Park, NYC)</text>
+
+  <!-- Tier-3 NYC -->
+  <rect x="70" y="250" width="140" height="50" class="as-box"/>
+  <text x="140" y="270" text-anchor="middle" class="box-label">Spectrum</text>
+  <text x="140" y="285" text-anchor="middle" class="box-label">(Tier-3, NYC)</text>
+
+  <!-- Tier-2 NYC -->
+  <rect x="60" y="180" width="160" height="50" class="as-box"/>
+  <text x="140" y="200" text-anchor="middle" class="box-label">Verizon</text>
+  <text x="140" y="215" text-anchor="middle" class="box-label">(Tier-2, USA East)</text>
+
+  <!-- Tier-1 USA -->
+  <rect x="100" y="110" width="180" height="50" class="as-box"/>
+  <text x="190" y="130" text-anchor="middle" class="box-label">NTT America</text>
+  <text x="190" y="145" text-anchor="middle" class="box-label">(Tier-1 Transit)</text>
+
+  <!-- USA Landing Station -->
+  <rect x="280" y="300" width="160" height="50" class="as-box"/>
+  <text x="360" y="320" text-anchor="middle" class="box-label">Bellport CLS, NY</text>
+  <text x="360" y="335" text-anchor="middle" class="box-label">(AT&T/Shirley)</text>
+
+  <!-- India Landing Station -->
+  <rect x="820" y="300" width="160" height="50" class="as-box"/>
+  <text x="900" y="320" text-anchor="middle" class="box-label">Mumbai CLS</text>
+  <text x="900" y="335" text-anchor="middle" class="box-label">(Bharti Airtel)</text>
+
+  <!-- India Tier-1 -->
+  <rect x="940" y="110" width="160" height="50" class="as-box"/>
+  <text x="1020" y="130" text-anchor="middle" class="box-label">Bharti Airtel</text>
+  <text x="1020" y="145" text-anchor="middle" class="box-label">(Tier-1 India)</text>
+
+  <!-- India Tier-2 -->
+  <rect x="1000" y="180" width="160" height="50" class="as-box"/>
+  <text x="1080" y="200" text-anchor="middle" class="box-label">Airtel Backbone</text>
+  <text x="1080" y="215" text-anchor="middle" class="box-label">(Tier-2)</text>
+
+  <!-- India Tier-3 -->
+  <rect x="1000" y="250" width="160" height="50" class="as-box"/>
+  <text x="1080" y="270" text-anchor="middle" class="box-label">Jio Access</text>
+  <text x="1080" y="285" text-anchor="middle" class="box-label">(Tier-3, NCR)</text>
+
+  <!-- Users in NCR -->
+  <circle cx="1150" cy="280" r="5" fill="gray"/>
+  <circle cx="1130" cy="290" r="5" fill="gray"/>
+  <circle cx="1140" cy="300" r="5" fill="gray"/>
+  <text x="1140" y="320" class="label" text-anchor="middle">(NCR, India)</text>
+
+  <!-- Moving packet -->
+  <circle r="6" fill="#ef4444">
+    <animateMotion dur="10s" repeatCount="indefinite"
+      path="M50,290 L170,275 L180,205 L190,135 L360,325 C500,500 700,500 900,325 L1020,135 L1040,205 L1060,275 L1140,290"/>
+  </circle>
+</svg>
+
+
+</section>
+
+<section>
+<h2>3. Satellites & Remote Regions</h2>
+<div class="narration">
+Satellites are essential for connecting <strong>remote areas</strong> where fiber does not reach, such as deserts, mountains, or border villages. A villager’s <strong>Starlink dish</strong> (or VSAT terminal) beams data up to a <strong>LEO satellite</strong>.  
+<br><br>
+That satellite must quickly <strong>downlink</strong> to the nearest licensed <strong>ground gateway</strong> in the same country (for example, Riyadh or Dubai for Saudi Arabia). From there, traffic flows into the <strong>national Tier-1/Tier-2 ISPs</strong>.  
+<br><br>
+But here’s the key: <strong>satellites don’t replace the global internet backbone</strong>. They only bridge the "first mile" from remote villages to the backbone. Once traffic hits the gateway, it usually rides <strong>submarine cables</strong> — such as Jeddah → Mumbai or Chennai — to reach India’s internet core.  
+<br><br>
+In India, packets land at <strong>Mumbai or Chennai Cable Landing Stations</strong>, then traverse <strong>Tier-1 carriers (Tata, Airtel, Jio)</strong>, move onto <strong>regional Tier-2 backbones</strong> (RailTel, BSNL, Sify), and finally reach the <strong>local Tier-3 ISP</strong> or <strong>NESAC node</strong> in Arunachal Pradesh that serves the destination village.  
+<br><br>
+So even with satellites, <strong>the submarine cables remain the backbone of the global internet</strong>. Satellites just provide access where fiber cannot.
+</div>
+
+<svg viewBox="0 0 1200 750" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .sky { fill: #e0f2fe; }
+    .land-sa { fill: #fde68a; }  /* Saudi / ME */
+    .land-in { fill: #bbf7d0; }  /* India */
+    .ocean { fill: #bfdbfe; }
+    .as-box { fill: #fff; stroke: #333; stroke-width: 2; rx: 6; ry: 6; }
+    .label { font-family: sans-serif; font-size: 13px; }
+    .box-label { font-family: sans-serif; font-size: 12px; }
+  </style>
+
+  <!-- Sky -->
+  <rect x="0" y="0" width="1200" height="280" class="sky"/>
+  <text x="600" y="35" text-anchor="middle" class="label">LEO Satellite Relay (Starlink)</text>
+
+  <!-- Ground regions -->
+  <rect x="0" y="280" width="400" height="470" class="land-sa"/>
+  <rect x="400" y="280" width="400" height="470" class="ocean"/>
+  <rect x="800" y="280" width="400" height="470" class="land-in"/>
+  <text x="600" y="740" text-anchor="middle" class="label">Saudi Arabia → India (Arunachal Pradesh)</text>
+
+  <!-- Satellite -->
+  <circle cx="600" cy="120" r="40" fill="#a3a3a3" stroke="#333" stroke-width="2"/>
+  <text x="600" y="115" text-anchor="middle" class="box-label">Starlink</text>
+  <text x="600" y="130" text-anchor="middle" class="box-label">LEO Sat</text>
+
+  <!-- Downlink path -->
+  <path d="M120,360 L600,120" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+  <text x="280" y="330" class="label">Downlink</text>
+
+  <!-- Uplink path -->
+  <path d="M600,120 L180,400" stroke="#16a34a" stroke-width="2" stroke-dasharray="6 4" fill="none"/>
+  <text x="380" y="200" class="label">Uplink</text>
+
+  <!-- Villager (above Saudi ground station) -->
+  <circle cx="120" cy="360" r="6" fill="gray"/>
+  <text x="120" y="380" text-anchor="middle" class="label">Remote Villager</text>
+  <text x="120" y="395" text-anchor="middle" class="label">(Starlink Dish)</text>
+
+
+  <!-- Saudi Ground Station -->
+  <rect x="100" y="400" width="180" height="55" class="as-box"/>
+  <text x="190" y="425" text-anchor="middle" class="box-label">Starlink Gateway</text>
+  <text x="190" y="440" text-anchor="middle" class="box-label">(Riyadh / Dubai)</text>
+
+  <!-- Saudi Tier-1/Tier-2 -->
+  <rect x="100" y="480" width="200" height="55" class="as-box"/>
+  <text x="200" y="505" text-anchor="middle" class="box-label">STC / Mobily / Zain</text>
+  <text x="200" y="520" text-anchor="middle" class="box-label">(Tier-1 / Tier-2)</text>
+
+  <!-- Submarine Cable -->
+  <path d="M300,500 C500,600 700,600 900,500" 
+        stroke="#0ea5a4" stroke-width="6" fill="none" stroke-dasharray="10 6"/>
+  <text x="600" y="590" text-anchor="middle" class="label">Submarine Cable (Jeddah → Mumbai/Chennai)</text>
+
+  <!-- India CLS -->
+  <rect x="880" y="420" width="200" height="55" class="as-box"/>
+  <text x="980" y="445" text-anchor="middle" class="box-label">India CLS</text>
+  <text x="980" y="460" text-anchor="middle" class="box-label">(Mumbai / Chennai)</text>
+
+  <!-- India Tier-1 -->
+  <rect x="900" y="490" width="200" height="55" class="as-box"/>
+  <text x="1000" y="515" text-anchor="middle" class="box-label">Tata / Airtel / Jio</text>
+  <text x="1000" y="530" text-anchor="middle" class="box-label">(Tier-1 Transit)</text>
+
+  <!-- India Tier-2 -->
+  <rect x="920" y="560" width="200" height="55" class="as-box"/>
+  <text x="1020" y="585" text-anchor="middle" class="box-label">RailTel / Sify / BSNL</text>
+  <text x="1020" y="600" text-anchor="middle" class="box-label">(Tier-2 Regional)</text>
+
+  <!-- India Tier-3 -->
+  <rect x="940" y="630" width="200" height="55" class="as-box"/>
+  <text x="1040" y="655" text-anchor="middle" class="box-label">BSNL / NEC / NESAC Node</text>
+  <text x="1040" y="670" text-anchor="middle" class="box-label">(Tier-3, Arunachal)</text>
+
+  <!-- Final village server -->
+  <circle cx="1140" cy="660" r="6" fill="gray"/>
+  <text x="1140" y="680" text-anchor="middle" class="label">Village Web Server</text>
+
+  <!-- Moving Packet -->
+  <circle r="6" fill="#ef4444">
+    <animateMotion dur="15s" repeatCount="indefinite"
+      path="M120,360 L600,120 L190,425 L200,505 C500,600 700,600 980,445 L1000,515 L1020,585 L1040,655 L1140,660"/>
+  </circle>
+
+</svg>
+</section>
+
+
+</section>
+
+</body>
+</html>
