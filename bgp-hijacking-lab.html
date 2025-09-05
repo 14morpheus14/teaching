@@ -45,6 +45,19 @@
   .textpanel{font-size:15px;color:#0f172a;padding:10px;background:#fbfeff;border-radius:8px;margin-top:10px;line-height:1.45}
   .note{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
   .caption{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+
+  @media (max-width: 768px) {
+    .flex-container {
+        flex-direction: column;
+    }
+    .flex-container > .stage {
+        width: 100%;
+    }
+    .flex-container > div:last-child {
+        width: 100%;
+    }
+    }
+
 </style>
 </head>
 <body>
@@ -60,9 +73,8 @@
   </div>
 
   <section class="card">
-    <div class="panel-title">Visual (left) · Narration (right)</div>
-    <div style="display:flex;gap:12px;align-items:flex-start">
-      <div style="flex:1" class="stage">
+    <div class="flex-container" style="display:flex;gap:12px;align-items:flex-start">
+  <div class="stage" style="flex:1">
         <svg viewBox="0 0 1100 420">
           <defs>
             <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -142,12 +154,11 @@
           <circle id="dos_effect" class="dos" cx="250" cy="220" r="70"/>
           <text id="dos_label" x="250" y="300" text-anchor="middle" class="sub" fill="#bf1f2f">DoS floods victim’s border router</text>
         </svg>
-      </div>
-
-      <div style="width:360px">
-        <div id="narration" class="textpanel">Slide text will appear here.</div>
-        <div class="note" id="brief">Use Next / Prev to step through. Spacebar = Play/Pause.</div>
-      </div>
+  </div>
+  <div style="width:360px">
+    <div id="narration" class="textpanel">…</div>
+  </div>
+</div>
     </div>
     <div class="caption" id="caption"></div>
   </section>
