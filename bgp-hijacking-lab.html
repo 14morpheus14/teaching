@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BGP Tutorial — From Basics to Hijacking</title>
+<style>
+  :root{
+    --bg:#f9fbfc; --panel:#fff; --muted:#6b7280; --accent:#0ea5a4;
+    --danger:#ef4444; --ok:#16a34a; --shadow:0 6px 16px rgba(2,6,23,0.08);
+    font-family: Inter, system-ui, sans-serif;
+  }
+  body{margin:0;background:var(--bg);color:#0f172a;padding:20px}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{text-align:center;font-size:26px;margin:6px 0 18px}
+  .controls{display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap}
+  .btn{padding:8px 14px;border-radius:8px;border:1px solid rgba(2,6,23,0.06);background:#fff;cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,#e6fffd,#dff6f6);border-color:rgba(14,165,164,0.2)}
+  .card{background:var(--panel);border-radius:12px;padding:14px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .panel-title{font-weight:700;margin-bottom:8px}
+  .stage{display:flex;align-items:center;justify-content:center}
+  svg{width:100%;height:420px}
+
+  /* diagram basics */
+  .box{fill:#fff;stroke:#071124;stroke-opacity:0.08;rx:10}
+  .as-label{font-weight:700;font-size:13px;fill:#071124}
+  .sub{font-size:12px;fill:var(--muted)}
+
+  /* border routers */
+  .router circle{fill:#0ea5a4;stroke:#fff;stroke-width:2}
+  .router text{fill:#fff;font-size:11px;font-weight:700;dominant-baseline:middle;text-anchor:middle}
+
+  /* arrows */
+  .arrow{fill:none;stroke:#071124;stroke-width:3;opacity:0}
+  .arrow.good{stroke:var(--ok)}
+  .arrow.bad{stroke:var(--danger)}
+  .draw{stroke-dasharray:1000;stroke-dashoffset:1000;animation:dash 0.8s linear forwards}
+  @keyframes dash{to{stroke-dashoffset:0}}
+
+  /* DoS attack style */
+  .dos{stroke:var(--danger);stroke-width:4;stroke-dasharray:8;opacity:0}
+  .dos.active{opacity:1;animation:blink 0.6s linear infinite}
+  @keyframes blink {50%{opacity:0}}
+  
+  .textpanel{font-size:15px;color:#0f172a;padding:10px;background:#fbfeff;border-radius:8px;margin-top:10px;line-height:1.45}
+  .note{font-size:13px;color:var(--muted);margin-top:6px;text-align:center}
+  .caption{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>BGP Tutorial — From Basics to Hijacking</h1>
+
+  <div class="controls card">
+    <button class="btn" id="prev">◀ Prev</button>
+    <button class="btn primary" id="next">Next ▶</button>
+    <button class="btn" id="play">Play</button>
+    <button class="btn" id="reset">Reset</button>
+    <div style="margin-left:12px;color:var(--muted)">Slide <strong id="stepNum">0</strong> / 9</div>
+  </div>
+
+  <section class="card">
+    <div class="panel-title">Visual (left) · Narration (right)</div>
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1" class="stage">
+        <svg viewBox="0 0 1100 420">
+          <defs>
+            <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" fill="#071124"/>
+            </marker>
+          </defs>
+
+          <!-- victim -->
+          <g id="as1" transform="translate(160,220)">
+            <rect x="-80" y="-40" width="160" height="80" class="box"/>
+            <text x="0" y="-8" text-anchor="middle" class="as-label">AS 64501</text>
+            <text x="0" y="16" text-anchor="middle" class="sub">Victim · 10.0.0.0/16</text>
+            <!-- border router -->
+            <g class="router" transform="translate(90,0)">
+              <circle r="12" id="victim-router"/>
+              <text>R</text>
+            </g>
+          </g>
+
+          <!-- transit -->
+          <g id="as2" transform="translate(540,200)">
+            <rect x="-90" y="-50" width="180" height="100" class="box"/>
+            <text x="0" y="-8" text-anchor="middle" class="as-label">AS 64510</text>
+            <text x="0" y="18" text-anchor="middle" class="sub">Transit ISP</text>
+            <g class="router" transform="translate(-100,0)">
+              <circle r="12"/>
+              <text>R</text>
+            </g>
+            <g class="router" transform="translate(100,0)">
+              <circle r="12"/>
+              <text>R</text>
+            </g>
+          </g>
+
+          <!-- client -->
+          <g id="as3" transform="translate(920,220)">
+            <rect x="-80" y="-40" width="160" height="80" class="box"/>
+            <text x="0" y="-8" text-anchor="middle" class="as-label">AS 64520</text>
+            <text x="0" y="16" text-anchor="middle" class="sub">Client Network</text>
+            <g class="router" transform="translate(-90,0)">
+              <circle r="12"/>
+              <text>R</text>
+            </g>
+          </g>
+
+          <!-- attacker -->
+          <g id="att" transform="translate(540,340)">
+            <rect x="-90" y="-30" width="180" height="60" class="box"/>
+            <text x="0" y="-6" text-anchor="middle" class="as-label" fill="#bf1f2f">AS 65555</text>
+            <text x="0" y="16" text-anchor="middle" class="sub">Attacker (APT)</text>
+            <g class="router" transform="translate(0,-40)">
+              <circle r="12"/>
+              <text>R</text>
+            </g>
+          </g>
+
+          <!-- flows -->
+          <path id="flow" class="arrow good" d="M900,240 C760,210 640,200 540,210 C440,220 320,210 200,240" marker-end="url(#m)"/>
+          <text id="flow_label" x="540" y="80" text-anchor="middle" class="sub">Normal packet flow</text>
+
+          <path id="ann_v" class="arrow" d="M160,180 C300,140 440,130 540,150" marker-end="url(#m)"/>
+          <text id="ann_v_label" x="360" y="130" text-anchor="middle" class="sub">Victim announces prefix</text>
+
+          <path id="prop" class="arrow" d="M560,150 C700,160 820,180 900,200" marker-end="url(#m)"/>
+          <text id="prop_label" x="740" y="165" text-anchor="middle" class="sub">Transit propagates route</text>
+
+          <path id="ann_a" class="arrow bad" d="M540,300 C580,260 740,220 900,220" marker-end="url(#m)"/>
+          <text id="ann_a_label" x="720" y="250" text-anchor="middle" class="sub" fill="#bf1f2f">Attacker announces same prefix</text>
+
+          <path id="hijack" class="arrow bad" d="M900,220 C760,260 640,280 540,300" marker-end="url(#m)"/>
+          <text id="hijack_label" x="720" y="310" text-anchor="middle" class="sub" fill="#bf1f2f">Traffic diverted</text>
+
+          <path id="subprefix" class="arrow bad" d="M540,310 C700,320 820,280 900,240" marker-end="url(#m)"/>
+          <text id="subprefix_label" x="740" y="290" text-anchor="middle" class="sub" fill="#bf1f2f">Attacker uses /24 (longer prefix)</text>
+          
+          <!-- DoS attack effect -->
+          <circle id="dos_effect" class="dos" cx="250" cy="220" r="70"/>
+          <text id="dos_label" x="250" y="300" text-anchor="middle" class="sub" fill="#bf1f2f">DoS floods victim’s border router</text>
+        </svg>
+      </div>
+
+      <div style="width:360px">
+        <div id="narration" class="textpanel">Slide text will appear here.</div>
+        <div class="note" id="brief">Use Next / Prev to step through. Spacebar = Play/Pause.</div>
+      </div>
+    </div>
+    <div class="caption" id="caption"></div>
+  </section>
+</div>
+
+<script>
+  const stepNum = document.getElementById('stepNum');
+  const narration = document.getElementById('narration');
+  const caption = document.getElementById('caption');
+
+  const el = id => document.getElementById(id);
+  const ids = ['flow','flow_label','ann_v','ann_v_label','prop','prop_label','ann_a','ann_a_label','hijack','hijack_label','subprefix','subprefix_label','dos_effect','dos_label'];
+  const groups = ids.reduce((o,id)=>{o[id]=el(id);return o;},{});  
+
+  function hideAll(){
+    ids.forEach(id=>{groups[id].style.opacity=0;groups[id].classList.remove('draw','active')});
+  }
+  function draw(id){groups[id].style.opacity=1;groups[id].classList.remove('draw');void groups[id].getBBox;groups[id].classList.add('draw')}
+  function show(id){groups[id].style.opacity=1}
+  function pulse(id){groups[id].classList.add('active')}
+
+  const slides = [
+    {t:"Intro",n:"We are going to learn how the Internet routes packets using BGP, what an Autonomous System is, what prefixes mean, and how attackers sometimes hijack traffic.",s:()=>{hideAll();}},
+    {t:"What is an AS?",n:"An Autonomous System (AS) is a large network under a single organization — like an ISP, university, or big company. Each AS manages its own routing policies. Border routers — those small green R nodes — are the points that connect one AS to another.",s:()=>{hideAll();}},
+    {t:"What is an ASN?",n:"Every AS is assigned a unique number called an ASN (Autonomous System Number). These numbers are allocated by regional internet registries. They are validated, meaning you cannot just make one up.",s:()=>{hideAll();}},
+    {t:"What is a prefix?",n:"A prefix is a block of IP addresses, like 10.0.0.0/16. The '/16' means the first 16 bits are fixed, so it covers 65,536 addresses. Prefixes tell the world what IP ranges belong to which AS.",s:()=>{hideAll();show('ann_v_label');}},
+    {t:"How BGP works",n:"Border routers in AS 64501 announce their prefix to their neighbor AS 64510. That transit ISP then propagates the route further to AS 64520. Packets flow normally from client to victim.",s:()=>{hideAll();draw('ann_v');draw('prop');draw('flow');}},
+    {t:"Shortest path rule",n:"Routers usually prefer the path with fewer AS hops. This makes routing efficient, but also creates a weakness: attackers who can announce shorter or more specific paths can attract traffic.",s:()=>{hideAll();draw('flow');}},
+    {t:"Realistic attacker",n:"A simple attacker cannot just claim to own a prefix — ASN assignments are validated. But a state-sponsored or government-level attacker (APT) can control a real ASN and make false announcements.",s:()=>{hideAll();draw('ann_a');}},
+    {t:"Hijack via shorter path",n:"If attacker AS 65555 claims it has a shorter path to the same prefix, other networks may reroute traffic through it. This lets the attacker intercept, spy, or drop packets.",s:()=>{hideAll();draw('ann_a');draw('hijack');}},
+    {t:"Hijack via sub-prefix",n:"Attackers can also announce a more specific prefix, e.g., 10.0.0.0/24 instead of 10.0.0.0/16. Since routers always prefer the longest match, traffic shifts to the attacker even if the path is longer.",s:()=>{hideAll();draw('subprefix');}},
+    {t:"DoS against an AS",n:"Another kind of attack doesn’t involve hijacking routes at all. An adversary can bombard an AS with denial-of-service traffic, overwhelming its border routers. Even without route hijacks, this disrupts connectivity and cuts the victim network off from the Internet.",s:()=>{hideAll();pulse('dos_effect');show('dos_label');}}
+  ];
+
+  let current=0, timer=null, playing=false;
+  function render(i){
+    current=i;
+    stepNum.textContent=i;
+    narration.textContent=slides[i].n;
+    caption.textContent=`Slide ${i}: ${slides[i].t}`;
+    slides[i].s();
+  }
+  render(0);
+
+  function stop(){playing=false;document.getElementById('play').textContent='Play';if(timer)clearInterval(timer);}
+  document.getElementById('next').onclick=()=>{if(current<slides.length-1)render(++current);stop();}
+  document.getElementById('prev').onclick=()=>{if(current>0)render(--current);stop();}
+  document.getElementById('reset').onclick=()=>{render(0);stop();}
+  document.getElementById('play').onclick=()=>{
+    if(playing){stop();return;}
+    playing=true;document.getElementById('play').textContent='Pause';
+    timer=setInterval(()=>{if(current<slides.length-1)render(++current);else stop();},2800);
+  };
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight')document.getElementById('next').click();
+    if(e.key==='ArrowLeft')document.getElementById('prev').click();
+    if(e.key===' ') {e.preventDefault();document.getElementById('play').click();}
+  });
+</script>
+</body>
+</html>
