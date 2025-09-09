@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Port Scanning Tutorial</title>
+  <style>
+    :root{--bg:#f7fafc; --card:#ffffff; --muted:#6b7280; --accent:#2563eb; --accent-2:#059669; --danger:#dc2626; --max-width:980px}
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:#0f172a; margin:0; padding:24px; display:flex; justify-content:center}
+    .wrap{width:100%; max-width:var(--max-width)}
+    header{background:var(--card); padding:18px 20px; border-radius:12px; box-shadow:0 6px 18px rgba(2,6,23,0.06); margin-bottom:16px}
+    header h1{margin:0;font-size:20px}
+    header p{margin:6px 0 0; color:var(--muted); font-size:13px}
+
+    .controls-row{display:flex; gap:8px; margin:12px 0 18px; flex-wrap:wrap}
+    .tabs{display:flex; gap:8px; flex-wrap:wrap}
+    .tab{background:var(--card); padding:8px 10px; border-radius:8px; border:1px solid #e6eef8; cursor:pointer; font-size:13px}
+    .tab.active{box-shadow:inset 0 -3px 0 var(--accent);}
+
+    main{background:var(--card); border-radius:12px; padding:20px; box-shadow:0 10px 30px rgba(2,6,23,0.06)}
+    .row{display:grid; grid-template-columns: 1fr 420px; gap:18px}
+    @media (max-width:980px){.row{grid-template-columns:1fr}}
+
+    .panel{background:#fbfdff; border-radius:10px; padding:14px; border:1px solid #eef5ff}
+    .visual{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:6px}
+    svg.diagram{width:100%; max-width:560px; height:220px}
+
+    .step-meta{margin-top:8px}
+    .step-meta h3{margin:0 0 6px}
+    .step-meta p{margin:0;color:var(--muted); font-size:13px}
+
+    .explain{background:linear-gradient(180deg,#ffffff,#fbfdff); border-radius:10px; padding:14px; border:1px solid #e6f1ff}
+    .explain h4{margin:0 0 8px}
+    .explain p{margin:6px 0;color:#1f2937; font-size:14px}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    @media (max-width:640px){.grid-2{grid-template-columns:1fr}}
+
+    .note{font-size:13px; color:var(--muted); margin-top:8px}
+    .kbd{background:#0b1220;color:#fff;padding:2px 6px;border-radius:6px;font-size:12px}
+
+    .nav{display:flex; gap:8px; justify-content:space-between; margin-top:12px}
+    .btn{padding:8px 12px; border-radius:8px; border:1px solid #cfe3ff; background:#fff; cursor:pointer}
+    .btn.primary{background:var(--accent); color:#fff; border-color:transparent}
+    .progress{height:8px; background:#eef4ff; border-radius:99px; overflow:hidden}
+    .progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); width:0%}
+
+    footer{margin-top:14px; color:var(--muted); font-size:13px}
+    .pill{display:inline-block;background:#f0f9ff;border-radius:99px;padding:6px 9px;font-size:12px;border:1px solid #e6f7ff}
+    .danger{color:var(--danger);font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Port Scanning Tutorial</h1>
+      <p>Step-through visualizations for common port-scan techniques. This tutorial explains observed packet flows and the protocol-level reasoning behind each outcome. <strong>Not</strong> a how-to for performing scans — for ethical and legal reasons this is conceptual only.</p>
+    </header>
+
+    <div class="controls-row">
+      <div class="tabs" role="tablist" aria-label="Scan types" id="scanTabs">
+        <button class="tab active" data-scan="syn">TCP SYN (stealth)</button>
+        <button class="tab" data-scan="connect">TCP Connect</button>
+        <button class="tab" data-scan="fin">FIN / NULL / Xmas</button>
+        <button class="tab" data-scan="ack">ACK / Window</button>
+        <button class="tab" data-scan="maimon">Maimon (FIN+ACK)</button>
+        <button class="tab" data-scan="udp">UDP</button>
+        <button class="tab" data-scan="idle">Idle / Zombie (concept)</button>
+        <button class="tab" data-scan="ftp">FTP Bounce</button>
+        <button class="tab" data-scan="ipproto">IP Protocol</button>
+      </div>
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center">
+        <div class="pill">Conceptual</div>
+        <button class="btn" id="printBtn" title="Print/Export">Print</button>
+      </div>
+    </div>
+
+    <main>
+      <div class="row">
+        <section class="panel" aria-live="polite">
+          <div id="scanTitle"><h2 style="margin:0">TCP SYN (stealth)</h2></div>
+
+          <div class="visual" id="visualArea">
+          </div>
+
+          <div class="nav">
+            <div style="display:flex; gap:8px; align-items:center">
+              <button class="btn" id="prevStep" aria-label="Previous step">Prev</button>
+              <button class="btn" id="nextStep" aria-label="Next step">Next</button>
+              <div style="font-size:13px;color:var(--muted)" id="stepCounter">Step 1 / 4</div>
+            </div>
+            <div style="width:280px">
+              <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+            </div>
+          </div>
+
+        </section>
+
+        <aside class="panel explain" id="explainPane">
+        </aside>
+      </div>
+
+      <section style="margin-top:14px" class="panel">
+        <div class="grid-2">
+          <div>
+            <h4>Quick glossary</h4>
+            <p><strong>SYN / SYN+ACK / ACK / RST:</strong> core TCP handshake and reset flags. Handshakes establish connections; RST indicates refusal or abrupt close.</p>
+            <p><strong>ICMP 3/3 (Port Unreachable):</strong> UDP-specific signal that says "no service is listening on this port".</p>
+          </div>
+          <div>
+            <h4>Ethics & legal</h4>
+            <p class="note">Port scanning systems you don't own or don't have explicit authorization to test can be illegal or considered hostile in many jurisdictions. Use this tutorial to learn protocol behavior and defensive detection techniques — not to perform unauthorized scans.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <strong>Detection & defence (high level):</strong> Intrusion Detection Systems (IDS), firewall rules that drop or rate-limit probes, and anomaly detection on connection patterns are common. Harden exposed services, use strict access controls, and monitor logs for scanning patterns.
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    // All SVGs include their own simple arrow defs to avoid missing markers across browsers.
+
+    const SCANS = {
+      syn: {
+        title: 'TCP SYN (stealth)',
+        steps: [
+          {
+            title: 'Probe — SYN sent',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowBlue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+                </defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="476" y="58" font-size="14">Target</text>
+                <line x1="160" y1="52" x2="440" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlue)" />
+                <text x="300" y="42" font-size="13">SYN</text>
+              </svg>
+            `,
+            observed: 'Attacker sends a single SYN packet to the target port.',
+            reason: 'SYN begins the TCP handshake; used to check if a service listens on that port.',
+            interpretation: 'Probe stage — no conclusion until a response is observed.'
+          },
+          {
+            title: 'Response — SYN+ACK (open)',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#059669"/></marker>
+                  <marker id="arrowRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+                </defs>
+                <rect x="20" y="20" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="48" y="48" font-size="14">Attacker</text>
+                <rect x="440" y="20" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="476" y="48" font-size="14">Target</text>
+                <line x1="160" y1="42" x2="440" y2="42" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowGreen)" />
+                <text x="300" y="32" font-size="13">SYN (probe)</text>
+                <line x1="440" y1="92" x2="160" y2="92" stroke="#059669" stroke-width="3" marker-end="url(#arrowGreen)" />
+                <text x="300" y="82" font-size="13">SYN+ACK (server accepts)</text>
+                <line x1="160" y1="142" x2="440" y2="142" stroke="#dc2626" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowRed)" />
+                <text x="300" y="132" font-size="13" fill="#dc2626">RST (scanner closes)</text>
+              </svg>
+            `,
+            observed: 'Target replies with SYN+ACK — typical for an open TCP port.',
+            reason: 'Listening TCP services reply SYN+ACK to indicate willingness to complete the handshake. Scanners\' OS often abort by sending RST because they were not expecting any SYN + ACK. This is beneficial for the scanners, as they do not need to worry about any connection states that may be logged by target or may require proper closing.',
+            interpretation: 'SYN+ACK is strong evidence the port is open.'
+          },
+          {
+            title: 'Response — RST (closed)',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowRed2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+                </defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="476" y="58" font-size="14">Target</text>
+                <line x1="440" y1="52" x2="160" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRed2)" />
+                <text x="300" y="42" font-size="13">RST</text>
+              </svg>
+            `,
+            observed: 'Target replies with RST immediately.',
+            reason: 'When no process listens on that port, TCP stacks generally reply with RST to indicate closed.',
+            interpretation: 'RST is evidence the port is closed.'
+          },
+          {
+            title: 'No response — filtered',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowGray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#9ca3af"/></marker>
+                </defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="476" y="58" font-size="14">Target</text>
+                <text x="300" y="100" font-size="13" fill="#6b7280">No reply — packet dropped or silently filtered</text>
+              </svg>
+            `,
+            observed: 'No reply after retransmits/timeouts.',
+            reason: 'Firewalls and filters may drop probes silently; absence of reply is ambiguous.',
+            interpretation: 'Could be filtered, host down, or rate-limited — use caution before concluding.'
+          }
+        ]
+      },
+
+      connect: {
+        title: 'TCP Connect (full handshake)',
+        steps:[
+          {
+            title: 'connect() -> SYN',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowBlueC" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+                </defs>
+                <rect x="20" y="30" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="32" y="58" font-size="13">Attacker (OS)</text>
+                <rect x="420" y="30" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+                <text x="452" y="58" font-size="14">Target</text>
+                <line x1="180" y1="52" x2="420" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlueC)"/>
+                <text x="300" y="42" font-size="13">SYN</text>
+              </svg>
+            `,
+            observed: 'OS sends SYN and will complete handshake on behalf of the application.',
+            reason: 'Full connect uses OS socket stack which completes all handshake steps.',
+            interpretation: 'Creates full connection state — more likely to be logged by services.'
+          },
+          {
+            title: 'SYN+ACK → ACK (handshake complete)',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowGreenC" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#059669"/></marker>
+                  <marker id="arrowAck" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b1220"/></marker>
+                </defs>
+                <rect x="20" y="20" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="32" y="48" font-size="13">Attacker (OS)</text>
+                <rect x="420" y="20" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="452" y="48" font-size="14">Target</text>
+                <line x1="180" y1="42" x2="420" y2="42" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowGreenC)"/><text x="300" y="32" font-size="13">SYN</text>
+                <line x1="420" y1="92" x2="180" y2="92" stroke="#059669" stroke-width="3" marker-end="url(#arrowGreenC)"/><text x="300" y="82" font-size="13">SYN+ACK</text>
+                <line x1="180" y1="142" x2="420" y2="142" stroke="#0b1220" stroke-width="3" marker-end="url(#arrowAck)"/><text x="300" y="132" font-size="13">ACK (complete)</text>
+              </svg>
+            `,
+            observed: 'Handshake completes; TCP connection established.',
+            reason: 'Full connect leaves state and may trigger service-level logging.',
+            interpretation: 'Easier to detect than half-open scans.'
+          },
+          {
+            title: 'Close — RST or graceful close',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowRedC" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+                </defs>
+                <rect x="20" y="30" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="32" y="58" font-size="13">Attacker (OS)</text>
+                <rect x="420" y="30" width="160" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="452" y="58" font-size="14">Target</text>
+                <line x1="180" y1="52" x2="420" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRedC)"/>
+                <text x="300" y="42" font-size="13">RST (close)</text>
+              </svg>
+            `,
+            observed: 'Scanner closes the connection after testing.',
+            reason: 'Closing removes state; connection attempts may still be logged.',
+            interpretation: 'Detectable in logs.'
+          }
+        ]
+      },
+fin: {
+  title: 'FIN / NULL / Xmas (RFC quirks)',
+  steps:[
+    {
+      title: 'Send unusual probes',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+
+          <line x1="160" y1="52" x2="440" y2="52" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowPurple)"/>
+          <text x="300" y="42" font-size="13">NULL (no flags)</text>
+
+          <line x1="160" y1="92" x2="440" y2="92" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowPurple)"/>
+          <text x="300" y="82" font-size="13">FIN only</text>
+
+          <line x1="160" y1="132" x2="440" y2="132" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowPurple)"/>
+          <text x="300" y="122" font-size="13">Xmas (FIN+PSH+URG)</text>
+        </svg>
+      `,
+      observed: 'Sends packets with unusual flag combinations (no SYN).',
+      reason: 'RFC 793 requires closed ports to RST, and open ports to drop unexpected packets.',
+      interpretation: 'NULL, FIN, and Xmas scans rely on silence vs RST differences.'
+    },
+    {
+      title: 'Responses',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+
+          <line x1="440" y1="52" x2="160" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRed)"/>
+          <text x="300" y="42" font-size="13">RST (closed port)</text>
+
+          <text x="300" y="100" font-size="13" fill="#6b7280">No reply (open or filtered)</text>
+        </svg>
+      `,
+      observed: 'Closed ports send RST, open ports remain silent (per RFC).',
+      reason: 'Unexpected flags cause RST only if port is closed.',
+      interpretation: 'RST ⇒ closed; silence ⇒ open/filtered (but unreliable on modern OS).'
+    }
+  ]
+},
+
+      ack: {
+        title: 'ACK / Window probe (filter discovery & fingerprinting)',
+        steps:[
+          {
+            title: 'ACK probe (firewall mapping)',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrowAck1" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/></marker>
+                  <marker id="arrowAck2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker>
+                </defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="476" y="58" font-size="14">Target</text>
+                <line x1="160" y1="52" x2="440" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowAck1)"/>
+                <text x="300" y="42" font-size="13">ACK</text>
+                <line x1="440" y1="92" x2="160" y2="92" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowAck2)"/>
+                <text x="300" y="82" font-size="13">RST (if unfiltered)</text>
+              </svg>
+            `,
+            observed: 'ACK elicits RST if the path is unfiltered; silence if filtered.',
+            reason: 'ACKs probe whether state exists or is being filtered; many firewalls drop unsolicited ACKs.',
+            interpretation: 'Use to discover firewall ruleset behaviour.'
+          },
+          {
+            title: 'Window probe (fingerprinting nuance)',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs><marker id="arrowWin" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#059669"/></marker></defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="476" y="58" font-size="14">Target</text>
+                <line x1="160" y1="52" x2="440" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowWin)"/>
+                <text x="300" y="42" font-size="13">ACK (inspect RST window)</text>
+                <text x="300" y="92" font-size="13" fill="#6b7280">RST window-size responses can leak implementation details</text>
+              </svg>
+            `,
+            observed: 'Inspecting the window field on RST responses may reveal OS stack traits.',
+            reason: 'Some TCP stacks return particular window values that are characteristic.',
+            interpretation: 'Used for passive/active fingerprinting.'
+          }
+        ]
+      },
+
+      maimon: {
+        title: 'Maimon (FIN+ACK)',
+        steps:[
+          {
+            title: 'FIN+ACK probe',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs><marker id="arrowM" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker></defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="476" y="58" font-size="14">Target</text>
+                <line x1="160" y1="52" x2="440" y2="52" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrowM)"/>
+                <text x="300" y="42" font-size="13">FIN+ACK</text>
+              </svg>
+            `,
+            observed: 'Sends FIN+ACK to test BSD-like stacks.',
+            reason: 'Some stacks respond with RST on closed ports and no reply on open ports (per some BSD behaviour).',
+            interpretation: 'Stack-dependent; less reliable nowadays.'
+          },
+          {
+            title: 'Responses: RST or silence',
+            svg: `
+              <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+                <defs><marker id="arrowRstM" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/></marker></defs>
+                <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="48" y="58" font-size="14">Attacker</text>
+                <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/><text x="476" y="58" font-size="14">Target</text>
+                <line x1="440" y1="52" x2="160" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRstM)"/>
+                <text x="300" y="42" font-size="13">RST (closed) or no reply (open/filter)</text>
+              </svg>
+            `,
+            observed: 'RST for closed or silence for open/filtered depending on stack.',
+            reason: 'OS behavior drives result; modern systems may not follow old RFC quirks.',
+            interpretation: 'Treat cautiously; use corroborating probes.'
+          }
+        ]
+      },
+
+udp: {
+  title: 'UDP Scan',
+  steps:[
+    {
+      title: 'Send UDP datagram',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowBlueU" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+          <line x1="160" y1="52" x2="440" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlueU)"/>
+          <text x="300" y="42" font-size="13">UDP probe</text>
+        </svg>
+      `,
+      observed: 'UDP datagram sent to target port.',
+      reason: 'UDP has no handshake, so scanner waits for ICMP errors or silence.',
+      interpretation: 'Open ports usually silent unless app replies; closed ports return ICMP.'
+    },
+    {
+      title: 'ICMP Port Unreachable (closed)',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowRedU" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+          <line x1="440" y1="52" x2="160" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRedU)"/>
+          <text x="300" y="42" font-size="13">ICMP 3/3 Port Unreachable</text>
+        </svg>
+      `,
+      observed: 'Closed UDP ports reply with ICMP Port Unreachable.',
+      reason: 'Per RFC 1122, unreachable ports must generate ICMP Type 3 Code 3.',
+      interpretation: 'Clear signal of closed port.'
+    },
+    {
+      title: 'No response / Other ICMP (open|filtered)',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+          <text x="300" y="42" font-size="13" fill="#6b7280">No reply</text>
+          <text x="300" y="72" font-size="13" fill="#6b7280">or ICMP 3/1,3/2,3/9,3/10,3/13</text>
+        </svg>
+      `,
+      observed: 'Open UDP services usually give no reply unless probed correctly. Firewalls may drop silently.',
+      reason: 'ICMP errors other than 3/3 indicate filtering (host/protocol/admin prohibited).',
+      interpretation: 'Silence = open|filtered; other ICMP = filtered.'
+    }
+  ]
+},
+
+idle: {
+  title: 'Idle (Zombie) Scan',
+  steps:[
+    {
+      title: 'Check zombie IPID',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="40" y="58" font-size="14">Attacker</text>
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="260" y="58" font-size="14">Zombie</text>
+          <line x1="140" y1="52" x2="240" y2="52" stroke="#2563eb" stroke-width="3"/>
+          <text x="190" y="42" font-size="13">Probe IPID</text>
+        </svg>
+      `,
+      observed: 'Attacker records baseline IPID from zombie.',
+      reason: 'Idle scan relies on predictable IPID increments.',
+      interpretation: 'Zombie must have incremental IPID behavior.'
+    },
+    {
+      title: 'Spoofed SYN via zombie',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowBlueI" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+            </marker>
+          </defs>
+          <rect x="20" y="80" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="40" y="108" font-size="14">Attacker</text>
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="260" y="58" font-size="14">Zombie</text>
+          <rect x="440" y="80" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="460" y="108" font-size="14">Target</text>
+          <line x1="240" y1="52" x2="440" y2="92" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlueI)"/>
+          <text x="340" y="62" font-size="13">Spoofed SYN (from zombie)</text>
+        </svg>
+      `,
+      observed: 'Attacker forges source IP as zombie and sends SYN to target.',
+      reason: 'Target replies to zombie, not attacker.',
+      interpretation: 'Zombie’s IPID changes only if it had to send RST.'
+    },
+    {
+      title: 'Check zombie IPID again',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="40" y="58" font-size="14">Attacker</text>
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="260" y="58" font-size="14">Zombie</text>
+          <line x1="140" y1="52" x2="240" y2="52" stroke="#2563eb" stroke-width="3"/>
+          <text x="190" y="42" font-size="13">Recheck IPID</text>
+        </svg>
+      `,
+      observed: 'If zombie’s IPID incremented by 2, it replied to target.',
+      reason: 'RST to SYN+ACK increments IPID.',
+      interpretation: 'IPID advanced = open; unchanged = closed/filtered.'
+    }
+  ]
+},
+
+ftp: {
+  title: 'FTP Bounce Scan',
+  steps:[
+    {
+      title: 'Attacker commands FTP server',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowBlueFtp" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+            </marker>
+          </defs>
+          <rect x="20" y="80" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="40" y="108" font-size="14">Attacker</text>
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="250" y="58" font-size="14">FTP Server</text>
+          <line x1="140" y1="100" x2="240" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlueFtp)"/>
+          <text x="190" y="72" font-size="13">PORT target:port</text>
+        </svg>
+      `,
+      observed: 'Attacker requests FTP server to connect to target.',
+      reason: 'Classic PORT/EPRT misuse in FTP.',
+      interpretation: 'FTP server acts as proxy for scanning.'
+    },
+    {
+      title: 'FTP server attempts connection',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="250" y="58" font-size="14">FTP Server</text>
+          <rect x="440" y="80" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="460" y="108" font-size="14">Target</text>
+          <line x1="360" y1="52" x2="440" y2="92" stroke="#2563eb" stroke-width="3"/>
+          <text x="400" y="72" font-size="13">Connect attempt</text>
+        </svg>
+      `,
+      observed: 'FTP server tries to open data channel to target.',
+      reason: 'FTP server executes attacker’s PORT command.',
+      interpretation: 'Success/failure reveals target’s port state.'
+    },
+    {
+      title: 'FTP server reports back',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="80" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="40" y="108" font-size="14">Attacker</text>
+          <rect x="240" y="30" width="120" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="250" y="58" font-size="14">FTP Server</text>
+          <line x1="240" y1="52" x2="140" y2="100" stroke="#2563eb" stroke-width="3"/>
+          <text x="190" y="72" font-size="13">Response code</text>
+        </svg>
+      `,
+      observed: 'Attacker sees FTP server’s success or failure.',
+      reason: 'FTP server returns standard code (150 success, 425/550 fail).',
+      interpretation: '2xx/150 ⇒ open; 425/550 ⇒ closed/filtered.'
+    }
+  ]
+},
+ipproto: {
+  title: 'IP Protocol Scan',
+  steps:[
+    {
+      title: 'Send probes with protocol numbers',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowBlueP" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+          <line x1="160" y1="52" x2="440" y2="52" stroke="#2563eb" stroke-width="3" marker-end="url(#arrowBlueP)"/>
+          <text x="300" y="42" font-size="13">Protocol 1,6,17,47,50...</text>
+        </svg>
+      `,
+      observed: 'Attacker cycles through IP protocol numbers.',
+      reason: 'Each number identifies a higher-layer protocol (ICMP, TCP, UDP, GRE, ESP, etc).',
+      interpretation: 'Tests which protocols target stack supports.'
+    },
+    {
+      title: 'Responses',
+      svg: `
+        <svg class="diagram" viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrowRedP" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+            </marker>
+          </defs>
+          <rect x="20" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="48" y="58" font-size="14">Attacker</text>
+          <rect x="440" y="30" width="140" height="44" rx="8" fill="#fff" stroke="#e6eef8"/>
+          <text x="476" y="58" font-size="14">Target</text>
+
+          <line x1="440" y1="52" x2="160" y2="52" stroke="#dc2626" stroke-width="3" marker-end="url(#arrowRedP)"/>
+          <text x="300" y="42" font-size="13">ICMP 3/2 Protocol Unreachable</text>
+
+          <text x="300" y="110" font-size="13" fill="#6b7280">No reply ⇒ supported / filtered</text>
+          <text x="300" y="140" font-size="13" fill="#6b7280">Other ICMP (3/1,3/9,3/10,3/13) ⇒ filtered</text>
+        </svg>
+      `,
+      observed: 'Unsupported protocols return ICMP unreachable; supported ones stay silent.',
+      reason: 'RFC requires Protocol Unreachable if protocol not implemented.',
+      interpretation: 'ICMP 3/2 ⇒ unsupported; silence ⇒ supported/filtered.'
+    }
+  ]
+}
+    };
+
+    // UI logic (unchanged in behaviour but robust checks added)
+    let currentScan = 'syn';
+    let stepIdx = 0;
+
+    const tabs = document.querySelectorAll('.tab');
+    const visualArea = document.getElementById('visualArea');
+    const explainPane = document.getElementById('explainPane');
+    const scanTitle = document.getElementById('scanTitle');
+    const prevBtn = document.getElementById('prevStep');
+    const nextBtn = document.getElementById('nextStep');
+    const stepCounter = document.getElementById('stepCounter');
+    const progressBar = document.getElementById('progressBar');
+
+    function render() {
+      const model = SCANS[currentScan];
+      // safety: ensure model exists
+      if (!model) return;
+      const step = model.steps[stepIdx];
+      scanTitle.innerHTML = `<h2 style=\"margin:0\">${model.title}</h2>`;
+      visualArea.innerHTML = `${step.svg}<div class=\"step-meta\"><h3>${step.title}</h3><p class=\"note\">${step.observed}</p></div>`;
+
+      explainPane.innerHTML = `
+        <h4>${step.title}</h4>
+        <p><strong>Observed</strong>: ${step.observed}</p>
+        <p><strong>Why (protocol reasoning)</strong>: ${step.reason}</p>
+        <p><strong>How to interpret (high-level)</strong>: ${step.interpretation}</p>
+        <div style=\"margin-top:10px; font-size:13px; color:var(--muted)\">Tip: Use the <span class=\"kbd\">Prev</span> / <span class=\"kbd\">Next</span> buttons or Left/Right arrows to step through.</div>
+      `;
+
+      stepCounter.textContent = `Step ${stepIdx+1} / ${model.steps.length}`;
+      const pct = Math.round(((stepIdx+1)/model.steps.length)*100);
+      progressBar.style.width = pct + '%';
+    }
+
+    function switchTo(scan) {
+      if (!SCANS[scan]) return; // guard
+      currentScan = scan;
+      stepIdx = 0;
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.scan === scan));
+      render();
+    }
+
+    tabs.forEach(t => t.addEventListener('click', () => switchTo(t.dataset.scan)));
+
+    prevBtn.addEventListener('click', () => {
+      const model = SCANS[currentScan];
+      stepIdx = (stepIdx - 1 + model.steps.length) % model.steps.length;
+      render();
+    });
+    nextBtn.addEventListener('click', ()=>{
+      const model = SCANS[currentScan];
+      stepIdx = (stepIdx + 1) % model.steps.length;
+      render();
+    });
+
+    document.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'ArrowLeft') prevBtn.click();
+      if (ev.key === 'ArrowRight') nextBtn.click();
+      if (ev.key === '1') switchTo('syn');
+    });
+
+    document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+    render();
+  </script>
+</body>
+</html>
